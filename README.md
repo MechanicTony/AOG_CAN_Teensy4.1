@@ -4,6 +4,5 @@ Steering navagation controller files for Teensy based boards to use with AgOpenG
 If your new to the teensy this is what ive had to do:
 1. You need to update the Arduino IDE
 2. Install the Teensy program
-3. Update/replace FlexCAN_T4 in the Arduino hardware folder 
-4. If your using UPD put the NativeEthernet in the Arduino hardware folder
+3. The new updated Teensy program 1.55 now inclucdes the latest FlexCAN_T4 & Native Ethernet so you no longer have to update manually.
 
