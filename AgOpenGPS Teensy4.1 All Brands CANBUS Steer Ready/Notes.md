@@ -4,11 +4,11 @@ UDP connection to AgOpen and USB/Serial monitor connection for service tool, the
 
 CAN1 = TRACTOR BUS, CAN2 = ISOBUS, CAN3 = STEERING BUS. Normal Steerswitch & Workswitch can be via pins or CAN.
 
-Brands Working Far:
+Brands Working So Far: <br />
 Valtra - Inc the new models with PVED-CC valve <br />
-Massey Fergerson - PVED-CL
-Deutz - PVED-CLS (Valtra / Massey Code)
-Claas - Both Non MR and MR
-Case/New Holland - PVED-CLS
-Fendt - SCR,S4,Gen6 (still working on the new 700 Gen6 Fendt One model tho)
-JCB - (Still need the test drive done first)
+Massey Fergerson - PVED-CL <br />
+Deutz - PVED-CLS (Valtra / Massey Code) <br />
+Claas - Both Non MR and MR <br /> 
+Case/New Holland - PVED-CLS <br />
+Fendt - SCR,S4,Gen6 (still working on the new 700 Gen6 Fendt One model tho) <br />
+JCB - (Still need the test drive done first) <br />
