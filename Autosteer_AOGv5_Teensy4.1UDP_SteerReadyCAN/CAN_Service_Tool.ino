@@ -1,5 +1,6 @@
 
 // Danfoss PVED-CL Service Tool for use with AgOpenGPS
+// The Danfoss PVED-CL parts are not in here yet, but will be copied over soon
 
 //----------------------------------------------------------
 //Notes from Ryan (When Changing Claas Parameter 64007) 
@@ -48,6 +49,7 @@ void Service_Tool (void) {
     else if ( b == '4') JCB();
     else if ( b == '5') FendtOne();
     else if ( b == '6') Lindner();
+    else if ( b == '7') AgOpenGPS();
     else if ( b == 'R') ReadCAN();
     else if ( b == 'S') StopCAN();
 
@@ -75,6 +77,7 @@ void Help(){
   Serial.println("4 = Set Brand as JCB");
   Serial.println("5 = Set Brand as FendtOne");
   Serial.println("6 = Set Brand as Lindner");
+  Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
   Serial.println(" ");
@@ -130,6 +133,13 @@ void Lindner(){
   EEPROM.update(70,6); 
   Brand = EEPROM.read(70);
   Serial.println("Brand Set Lindner, Power Off Teensy");
+  Serial.println(" ");
+}
+//**************************************************************************************
+void AgOpenGPS(){
+  EEPROM.update(70,7); 
+  Brand = EEPROM.read(70);
+  Serial.println("Brand Set AgOpenGPS, Power Off Teensy");
   Serial.println(" ");
 }
 //**************************************************************************************

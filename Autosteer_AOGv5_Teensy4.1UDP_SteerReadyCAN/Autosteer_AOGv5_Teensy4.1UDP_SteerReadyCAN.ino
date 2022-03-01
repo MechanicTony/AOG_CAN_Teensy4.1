@@ -209,6 +209,13 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint8_t AOG[] = {0x80,0x81, 0x7f, 0xFD, 8, 0, 0, 0, 0, 0,0,0,0, 0xCC };
   int16_t AOGSize = sizeof(AOG);
 
+  //fromAutoSteerData FD 250 - sensor values etc
+  uint8_t PGN_250[] = {0x80,0x81, 0x7f, 0xFA, 8, 0, 0, 0, 0, 0,0,0,0, 0xCC }; 
+  int8_t PGN_250_Size = sizeof(PGN_250) - 1;
+  uint8_t aog2Count = 0;
+  uint8_t pressureReading;
+  uint8_t currentReading;
+
   //IMU PGN - 211 - 0xD3
   uint8_t data[] = {0x80,0x81,0x7D,0xD3,8, 0,0,0,0, 0,0,0,0, 15};
   int16_t dataSize = sizeof(data);
@@ -297,7 +304,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     pinMode(DIR1_RL_ENABLE, OUTPUT);
     pinMode(13, OUTPUT);
     
-    if (steerConfig.CytronDriver) pinMode(PWM2_RPWM, OUTPUT); 
+    pinMode(PWM2_RPWM, OUTPUT); 
     
     //set up communication
     Wire.begin();
@@ -435,6 +442,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   else if (Brand == 4) Serial.println("Brand = JCB (Set Via Service Tool)");
   else if (Brand == 5) Serial.println("Brand = FendtOne (Set Via Service Tool)");
   else if (Brand == 6) Serial.println("Brand = Lindner (Set Via Service Tool)");
+  else if (Brand == 7) Serial.println("Brand = AgOpenGPS (Set Via Service Tool)");
   else Serial.println("No Tractor Brand Set, Set Via Service Tool");
 
   delay (3000);
@@ -442,7 +450,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
 //----Teensy 4.1 CANBus--End---------------------
 
-  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 03.02.2022");
+  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 01.03.2022");
   Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
   Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 
@@ -566,61 +574,49 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
      //get steering position       
      
      //DETERMINE ACTUAL STEERING POSITION  *********From CAN-Bus************
-
+      if (Brand == 7)
+      {
+        
+      }
+      else
+      {
       if(intendToSteer == 0) setCurve = estCurve;  //Not steering so setCurve = estCurve
 
       steeringPosition = (setCurve - 32128 + steerSettings.wasOffset); 
       if (Brand == 3) steerAngleActual = (float)(steeringPosition) / (steerSettings.steerSensorCounts * 10);  //Fendt Only
       if (Brand == 5) steerAngleActual = (float)(steeringPosition) / (steerSettings.steerSensorCounts * 10);  //Fendt Only
       else steerAngleActual = (float)(steeringPosition) / steerSettings.steerSensorCounts;
-        
+      }
       
       //Ackerman fix
       if (steerAngleActual < 0) steerAngleActual = (steerAngleActual * steerSettings.AckermanFix);
       
       if (watchdogTimer < WATCHDOG_THRESHOLD)
       { 
-       //Enable H Bridge for IBT2, hyd aux, etc for cytron
-        if (steerConfig.CytronDriver) 
-        {
-          if (steerConfig.IsRelayActiveHigh) 
-          {
-            digitalWrite(PWM2_RPWM, 0); 
-          }
-          else  
-          {
-            digitalWrite(PWM2_RPWM, 1);       
-          }        
-        }
-        else digitalWrite(DIR1_RL_ENABLE, 1);     
-        
+        //We are good to steer
+        digitalWrite(PWM2_RPWM, 1);       
+      
         steerAngleError = steerAngleActual - steerAngleSetPoint;   //calculate the steering error
         //if (abs(steerAngleError)< steerSettings.lowPWM) steerAngleError = 0;
         
-        calcSteeringPID();  //do the pid
-        motorDrive();       //out to motors the pwm value
+          if (Brand !=7 ){
+            calcSteeringPID();  //do the pid
+            motorDrive();       //out to motors the pwm value
+          }
         intendToSteer = 1; //CAN Curve Inteeded for Steering
+          
       }
       else
       {
         //we've lost the comm to AgOpenGPS, or just stop request
-        //Disable H Bridge for IBT2, hyd aux, etc for cytron
-        if (steerConfig.CytronDriver) 
-        {
-          if (steerConfig.IsRelayActiveHigh) 
-          {
-            digitalWrite(PWM2_RPWM, 1); 
-          }
-          else  
-          {
-            digitalWrite(PWM2_RPWM, 0);       
-          }
-        }
-        else digitalWrite(DIR1_RL_ENABLE, 0); //IBT2
+        digitalWrite(PWM2_RPWM, 0);       
+
         
-        intendToSteer = 0; //CAN Curve NOT Inteeded for Steering        
+        intendToSteer = 0; //CAN Curve NOT Inteeded for Steering   
+        if (Brand !=7 ){     
         pwmDrive = 0; //turn off steering motor
         motorDrive(); //out to motors the pwm value
+        }
         pulseCount=0;
       }
 
@@ -913,6 +909,28 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       Udp.write(AOG, AOGSize);
       Udp.endPacket();
 
+      //Steer Data 2 -------------------------------------------------
+        if (aog2Count++ > 2)
+        {
+         //Send fromAutosteer2
+           if ( steerConfig.CurrentSensor) PGN_250[5] = (byte)currentReading;
+           else if ( steerConfig.PressureSensor) PGN_250[5] = (byte)pressureReading;
+           else PGN_250[5] = 0;
+
+           //add the checksum for AOG2
+           CK_A = 0;
+           for (uint8_t i = 2; i < PGN_250_Size; i++)
+           {
+              CK_A = (CK_A + PGN_250[i]);
+           }
+           PGN_250[PGN_250_Size] = CK_A;
+
+           Udp.beginPacket(remote, 9999);
+           Udp.write(PGN_250, sizeof(PGN_250));
+           Udp.endPacket();
+           aog2Count = 0;
+         }
+
       // Stop sending the helloAgIO message
       helloCounter = 0;
 
@@ -985,7 +1003,10 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       //udpData[13];
         
       //store in EEPROM
-      EEPROM.put(10, steerSettings);           
+      EEPROM.put(10, steerSettings);
+
+      //Send Config Via CAN
+      if (Brand == 7) canConfig();
   
       // for PWM High to Low interpolator
       highLowPerDeg = ((float)(steerSettings.highPWM - steerSettings.lowPWM)) / LOW_HIGH_DEGREES;
@@ -1019,6 +1040,9 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       //udpData[13];        
        
       EEPROM.put(40, steerConfig);
+
+      //Send Config Via CAN
+      if (Brand == 7) canConfig();
   
       //reset for next pgn sentence
       isHeaderFound = isPGNFound = false;

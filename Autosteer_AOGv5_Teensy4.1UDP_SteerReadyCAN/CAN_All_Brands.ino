@@ -7,6 +7,7 @@
 //  4 = JCB (AB/171 Navagation Controller, 13/19 Steering Controller)
 //  5 = FendtOne - Same as Fendt but 500kbs K-Bus.
 //  6 = Lindner (F0/240 Navagation Controller, 13/19 Steering Controller)
+//  7 = AgOpenGPS - Remote CAN/PWM module (1C/28 Navagation Controller, 13/19 Steering Controller)
 
 //---Start Teensy CANBus Ports and Claim Addresses - If needed 
 
@@ -41,10 +42,14 @@ if (Brand == 5){
   }   
 if (Brand == 6){
   V_Bus.setFIFOFilter(0, 0x0CACF013, EXT);  //Lindner Curve Data & Valve State Message
-  }  
+  }
+if (Brand == 7){
+  V_Bus.setFIFOFilter(0, 0x0CAC1C13, EXT);  //AgOpenGPS Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(1, 0x19EF1C13, EXT);  //AgOpenGPS error message
+  }   
   
 // Claim V_Bus Address 
-if (Brand >= 0 && Brand <= 4){
+if (Brand >= 0 && Brand <= 7){
   CAN_message_t msgV;
   if (Brand == 0) msgV.id = 0x18EEFF1E;       //Claas
   else if (Brand == 1) msgV.id = 0x18EEFF1C;  //Massey, Valtra, ETC
@@ -53,6 +58,7 @@ if (Brand >= 0 && Brand <= 4){
   else if (Brand == 4) msgV.id = 0x18EEFFAB;  //JCB
   else if (Brand == 5) msgV.id = 0x18EEFF2C;  //FendtONE
   else if (Brand == 6) msgV.id = 0x18EEFFF0;  //Linder
+  else if (Brand == 7) msgV.id = 0x18EEFF1C;  //AgOpenGPS
   msgV.flags.extended = true;
   msgV.len = 8;
   msgV.buf[0] = 0x00;
@@ -79,11 +85,15 @@ if (Brand == 3){
   ISO_Bus.setFIFOFilter(1,0x18EF2CF0, EXT);  //Fendt Engage Message
   } 
 
+if (Brand == 5){
+  ISO_Bus.setFIFOFilter(1,0x18EF2CF0, EXT);  //Fendt Engage Message
+  }  
+
 if (Brand == 2){
   ISO_Bus.setFIFOUserFilter(1, 0x0CEFAA08, 0x0CEF08AA, 0x0000FF00, EXT);  //To find CaseIH Engage Message
   }  
 
-if (Brand >= 0 && Brand <= 4){
+if (Brand >= 0 && Brand <= 7){
   CAN_message_t msgISO;
   if (Brand == 0) msgISO.id = 0x18EEFF1E;       //Claas
   else if (Brand == 1) msgISO.id = 0x18EEFF1C;  //Massey, Valtra, ETC
@@ -92,6 +102,7 @@ if (Brand >= 0 && Brand <= 4){
   else if (Brand == 4) msgISO.id = 0x18EEFFAB;  //JCB
   else if (Brand == 5) msgISO.id = 0x18EEFF2C;  //FendtOne
   else if (Brand == 6) msgISO.id = 0x18EEFFF0;  //Linder
+  else if (Brand == 7) msgISO.id = 0x18EEFF1C;  //AgOpenGPS
   msgISO.flags.extended = true;
   msgISO.len = 8;
   msgISO.buf[0] = 0x00;
@@ -242,6 +253,22 @@ else if (Brand == 6){
     VBusSendData.buf[5] = 255;
     VBusSendData.buf[6] = 255;
     VBusSendData.buf[7] = 255;
+    V_Bus.write(VBusSendData);
+}
+else if (Brand == 7){
+    VBusSendData.id = 0x0CAD131C;
+    VBusSendData.flags.extended = true;
+    VBusSendData.len = 8;
+    int16_t sp = (int16_t)(steerAngleSetPoint*100);
+    VBusSendData.buf[0] = (uint8_t)sp;
+    VBusSendData.buf[1] = sp >> 8;
+    if (intendToSteer == 1)VBusSendData.buf[2] = 253;
+    if (intendToSteer == 0)VBusSendData.buf[2] = 252;
+    VBusSendData.buf[3] = 0;
+    VBusSendData.buf[4] = 0;
+    VBusSendData.buf[5] = 0;
+    VBusSendData.buf[6] = 0;
+    VBusSendData.buf[7] = 0;
     V_Bus.write(VBusSendData);
 }
 }
@@ -401,6 +428,18 @@ if (Brand == 6){
    
 }//End Brand == 6  
 
+ if (Brand == 7){
+  //**Current Wheel Angle & Valve State**
+  if (VBusReceiveData.id == 0x0CAC1C13){        
+        steerAngleActual = float(int16_t(VBusReceiveData.buf[1] << 8| VBusReceiveData.buf[0])) / 100; 
+        steeringValveReady = (VBusReceiveData.buf[2]);
+        pwmDisplay = (VBusReceiveData.buf[3]);
+        pressureReading = (VBusReceiveData.buf[4]);
+        currentReading = (VBusReceiveData.buf[5]);
+  }
+        
+}//End Brand == 7 
+
 if (ShowCANData == 1){
     Serial.print(Time);
     Serial.print(", V-Bus"); 
@@ -553,4 +592,49 @@ CAN_message_t buttonData;
 for ( uint8_t i = 0; i <= sizeof(endLift); i++ ) buttonData.buf[i] = endLift[i];
    K_Bus.write(buttonData);
    endDown = false;
+}
+
+void canConfig(){
+
+    CAN_message_t config251;
+    config251.id = 0x19EF131C;
+    config251.flags.extended = true;
+    config251.len = 8;
+    config251.buf[0] = 251;
+    config251.buf[1] = uint8_t(steerSettings.wasOffset);
+    config251.buf[2] = uint8_t(steerSettings.wasOffset >> 8);
+      uint8_t sett0 = 0;
+        if (steerConfig.InvertWAS == 1) bitSet(sett0,0); 
+        if (steerConfig.IsRelayActiveHigh == 1) bitSet(sett0,1); 
+        if (steerConfig.MotorDriveDirection == 1) bitSet(sett0,2); 
+        if (steerConfig.SingleInputWAS == 1) bitSet(sett0,3); 
+        if (steerConfig.CytronDriver == 1) bitSet(sett0,4); 
+        if (steerConfig.SteerSwitch == 1) bitSet(sett0,5); 
+        if (steerConfig.SteerButton == 1) bitSet(sett0,6);
+        if (steerConfig.ShaftEncoder == 1) bitSet(sett0,7);  
+    config251.buf[3] = sett0;
+    config251.buf[4] = steerConfig.PulseCountMax;
+      uint8_t sett1 = 0;
+        if (steerConfig.IsDanfoss == 1) bitSet(sett1,0); 
+        if (steerConfig.PressureSensor == 1) bitSet(sett1,1); 
+        if (steerConfig.CurrentSensor == 1) bitSet(sett1,2);    
+    config251.buf[5] = sett1;
+    config251.buf[6] = 0;
+    config251.buf[7] = 0;
+    V_Bus.write(config251);
+    
+        
+    CAN_message_t config252;
+    config252.id = 0x19EF131C;
+    config252.flags.extended = true;
+    config252.len = 8;
+    config252.buf[0] = 252;
+    config252.buf[1] = uint8_t(steerSettings.Kp);
+    config252.buf[2] = uint8_t(steerSettings.highPWM);
+    config252.buf[3] = uint8_t(steerSettings.lowPWM);
+    config252.buf[4] = uint8_t(steerSettings.minPWM);
+    config252.buf[5] = uint8_t(steerSettings.steerSensorCounts);
+    config252.buf[6] = uint8_t(steerSettings.AckermanFix * 100);
+    config252.buf[7] = 0;
+    V_Bus.write(config252);
 }
