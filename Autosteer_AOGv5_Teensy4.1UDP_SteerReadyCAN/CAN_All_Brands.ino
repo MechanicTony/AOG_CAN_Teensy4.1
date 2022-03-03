@@ -290,9 +290,9 @@ if (Brand == 0){
   if (VBusReceiveData.id == 0x18EF1CD2){
    if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 0){   //Ryan Stage5 Models?
       engageCAN = bitRead(VBusReceiveData.buf[0],2);
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
       //*****Turn saftey valve ON**********
      if (engageCAN == 1){
       if (steerConfig.CytronDriver) 
@@ -311,9 +311,9 @@ if (Brand == 0){
 
   else if ((VBusReceiveData.buf[0])== 39 && (VBusReceiveData.buf[2])== 241){   //Ryan MR Models?
       engageCAN = bitRead(VBusReceiveData.buf[1],0);
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
       //*****Turn saftey valve ON**********
      if (engageCAN == 1){
       if (steerConfig.CytronDriver) 
@@ -332,9 +332,9 @@ if (Brand == 0){
   
    else if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 125){ //Tony Non MR Models? Ryan Mod to bit read engage bit
       engageCAN = bitRead(VBusReceiveData.buf[0],2);
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
       //*****Turn saftey valve ON**********
       if (engageCAN == 1){
       if (steerConfig.CytronDriver) 
@@ -370,10 +370,10 @@ if (Brand == 0){
   //**Engage Message**
   if (VBusReceiveData.id == 0x18EF1C32){
     if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1){   
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
       engageCAN = 1;
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
    }
   } 
 }//End Brand == 1   
@@ -475,10 +475,10 @@ if (ISO_Bus.read(ISOBusReceiveData)) {
   if (Brand == 3){
   if (ISOBusReceiveData.id == 0x18EF2CF0){   //**Fendt Engage Message**  
     if ((ISOBusReceiveData.buf[0])== 0x0F && (ISOBusReceiveData.buf[1])== 0x60 && (ISOBusReceiveData.buf[2])== 0x01){   
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
       engageCAN = 1;
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
     }
    }
   }
@@ -513,10 +513,10 @@ if (K_Bus.read(KBusReceiveData)) {
       if(KBusReceiveData.buf[1]==0x8A and KBusReceiveData.buf[4]==0x80) steeringValveReady = 80;      // Fendt Auto Steer Active Pressed So CAN Not Ready
       
       if (KBusReceiveData.buf[1]==0x88 and KBusReceiveData.buf[4]==0x80){     // Fendt Auto Steer Go   
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
       engageCAN = 1;
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
    }
   }                                                             
  }
@@ -524,10 +524,10 @@ if (K_Bus.read(KBusReceiveData)) {
   if (Brand == 5){
   if (KBusReceiveData.id == 0xCFFD899){   //**FendtOne Engage Message**  
     if ((KBusReceiveData.buf[3])== 0xF6){   
-      Time = millis();
+      Time = systick_millis_count;
       digitalWrite(engageLED,HIGH); 
       engageCAN = 1;
-      relayTime = ((millis() + 1000));
+      relayTime = ((systick_millis_count + 1000));
     }
    }
   }

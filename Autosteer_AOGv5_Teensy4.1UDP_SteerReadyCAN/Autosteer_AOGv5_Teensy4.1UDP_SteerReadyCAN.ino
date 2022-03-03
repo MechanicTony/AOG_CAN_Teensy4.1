@@ -8,23 +8,26 @@
 
 //----------------------------------------------------------
 
-//Tony / @Commonrail Version 03.02.2022
+//Tony / @Commonrail On Board GPS Version 03.03.2022
 
-//GPS to Serial3 @ 115200, Forward to AgIO via UDP
+//GGA/VTG to Serial3 @ 115200
 //Forward Ntrip from AgIO (Port 2233) to Serial3
-//BNO08x/CMPS14 Data sent as IMU message (Not in Steering Message), timmed from steering message from AgOpen.
-//IMU sampled at 100hz (every 10msec)
+//BNO08x/CMPS14 Data sent with GPS data in PANDA format.
+//BNO08x IMU sampled at 100hz (every 10msec) - Roll, Pitch, Heading, Yaw rate.
+//CMPS Yaw Rate sampled at 100hz, Roll + Heading sampled when GPS recived. 
 
 //This CAN setup is for CANBUS based steering controllers as below:
 //Danfoss PVED-CL & PVED-CLS (Claas, JCB, Massey Fergerson, CaseIH, New Holland, Valtra, Deutz, Lindner)
 //Fendt SCR, S4, Gen6, FendtOne Models need Part:ACP0595080 3rd Party Steering Unlock Installed
 //Late model Valtra & Massey with PVED-CC valve (Steering controller in Main Tractor ECU)
+//AgOpenGPS remote PWM module
 //!!Model is selected via serial monitor service tool!! (One day we will will get a CANBUS setup page in AgOpen)
 
 //For engage & disengage via CAN or Button on PCB, select "Button" as switch option in AgOpen 
 //For engage via AgOpen tablet & disengage via CAN, select "None" as switch option and make sure "Remote" is on the steering wheel icon
 //For engage & disengage via PCB switch only select "Switch" as switch option
 
+//Note - This below is not used for AgOpenGPS remote module, it must be used as a normal AgOpen system
 //PWM value drives set curve up & down, so you need to set the PWM settings in AgOpen
 //Normal settings P=15, Max=254, Low=5, Min=1
 //Some tractors have very fast valves, this smooths out the setpoint from AgOpen
@@ -78,8 +81,40 @@
 
   #include <Wire.h>
   #include <EEPROM.h> 
-
+  #include "zNMEAParser.h"
   #include "BNO08x_AOG.h"
+
+//----GPS Settings--Start----------------------------
+//Serial Ports
+#define SerialGPS Serial3
+ 
+//is the GGA the second sentence?
+const bool isLastSentenceGGA = true;
+
+//Swap BNO08x roll & pitch?
+const bool swapRollPitch = false;
+//const bool swapRollPitch = true;
+
+const int32_t baudAOG = 115200;
+const int32_t baudGPS = 115200;
+
+//BNO08x, time after last GPS to load up IMU ready data for the next Panda takeoff
+const uint16_t IMU_DELAY_TIME = 90; //Best results seem to be 90-95ms
+uint32_t IMU_lastTime = IMU_DELAY_TIME;
+uint32_t IMU_currentTime = IMU_DELAY_TIME;
+
+//BNO08x, how offen should we get data from IMU (The above will just grab this data without reading IMU)
+const uint16_t GYRO_LOOP_TIME = 10;  
+uint32_t lastGyroTime = GYRO_LOOP_TIME;
+
+//CMPS14, how long should we wait with GPS before reading data from IMU then takeoff with Panda
+const uint16_t CMPS_DELAY_TIME = 4;  //Best results seem to be around 5ms
+uint32_t gpsReadyTime = CMPS_DELAY_TIME;
+
+/* A parser is declared with 3 handlers at most */
+NMEAParser<2> parser;
+
+//----GPS Settings--End------------------------------
   
 //----Teensy 4.1 Ethernet--Start---------------------
   #include <NativeEthernet.h>
@@ -154,15 +189,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint32_t lastTime = LOOP_TIME;
   uint32_t currentTime = LOOP_TIME;
 
-  //IMU message
-  const uint16_t IMU_DELAY_TIME = 70;    //70ms after steering message, 10hz GPS
-  uint32_t IMU_lastTime = IMU_DELAY_TIME;
-  uint32_t IMU_currentTime = IMU_DELAY_TIME;
-
-  //IMU data                            
-  const uint16_t GYRO_LOOP_TIME = 10;   //100Hz IMU 
-  uint32_t lastGyroTime = GYRO_LOOP_TIME;
-
   bool isTriggered = false, blink;
 
   //100hz summing of gyro
@@ -171,6 +197,9 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
   float roll, rollSum;
   float pitch, pitchSum;
+
+  float bno08xHeading = 0;
+  int16_t bno08xHeading10x = 0;
 
   // booleans to see if we are using CMPS or BNO08x
   bool useCMPS = false;
@@ -184,13 +213,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   const int16_t nrBNO08xAdresses = sizeof(bno08xAddresses)/sizeof(bno08xAddresses[0]);
   uint8_t bno08xAddress;
   BNO080 bno08x;
-
-  float bno08xHeading = 0;
-  double bno08xRoll = 0;
-  double bno08xPitch = 0;
-
-  int16_t bno08xHeading10x = 0;
-  int16_t bno08xRoll10x = 0;
 
   const uint16_t WATCHDOG_THRESHOLD = 100;
   const uint16_t WATCHDOG_FORCE_VALUE = WATCHDOG_THRESHOLD + 2; // Should be greater than WATCHDOG_THRESHOLD
@@ -362,6 +384,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   
             // Use GyroIntegratedRotationVector
             bno08x.enableGyro(GYRO_LOOP_TIME);
+            //bno08x.enableGameRotationVector(GYRO_LOOP_TIME - 1);
             bno08x.enableGyroIntegratedRotationVector(GYRO_LOOP_TIME-1); //Send data update every REPORT_INTERVAL in ms for BNO085, looks like this cannot be identical to the other reports for it to work...
   
             // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
@@ -460,7 +483,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   void loop()
   {
 
-    currentTime = millis();
+    currentTime = systick_millis_count;
 
 //--Main Timed Loop----------------------------------   
     if (currentTime - lastTime >= LOOP_TIME)
@@ -524,12 +547,12 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       else     // No steer switch and no steer button 
       {
         
-   if (steeringValveReady != 20 && steeringValveReady != 16){            
-      steerSwitch = 1; // reset values like it turned off
-      currentState = 1;
-      previous = HIGH;
-      }
-      
+      if (steeringValveReady != 20 && steeringValveReady != 16){            
+        steerSwitch = 1; // reset values like it turned off
+        currentState = 1;
+        previous = HIGH;
+        }
+         
         if (previousStatus != guidanceStatus) 
         {
           if (guidanceStatus == 1 && steerSwitch == 1 && previousStatus == 0)
@@ -541,9 +564,9 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           else
           {
             steerSwitch = 1;
-          }
-        }      
-        previousStatus = guidanceStatus;
+          } 
+        }
+        previousStatus = guidanceStatus;           
       }
       
       if (steerConfig.ShaftEncoder && pulseCount >= steerConfig.PulseCountMax) 
@@ -641,89 +664,14 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
     
 //end of main timed loop--------------------------------------------------------------------------------------------------------------
 
-//-----IMU Timed Loop-----
-
-//IMU message loop
-
-  IMU_currentTime = millis();
-
-  if (isTriggered && (IMU_currentTime - IMU_lastTime) >= IMU_DELAY_TIME)
-    {
-      isTriggered = false;
-      int16_t temp = 0;
-      
-      if (useCMPS)
-      {
-        Wire.beginTransmission(CMPS14_ADDRESS);  
-        Wire.write(0x02);                     
-        Wire.endTransmission();
-        
-        Wire.requestFrom(CMPS14_ADDRESS, 2); 
-        while(Wire.available() < 2);       
-      
-        //the heading x10
-        data[5] = Wire.read();
-        data[6] = Wire.read();
-            
-        //the roll x10
-        temp = (int16_t)rollSum;
-        data[7] = (uint8_t)temp;
-        data[8] = temp >> 8;  
-
-        //YawRate
-        temp = (int16_t)gyroSum;
-        data[9] = (uint8_t)temp;
-        data[10] = temp >> 8;
-      }
-      else if(useBNO08x)
-      {
-          //the heading x10
-          data[5] = (uint8_t)bno08xHeading10x;
-          data[6] = bno08xHeading10x >> 8;
-  
-          //the roll x10
-          temp = (int16_t)rollSum;
-          data[7] = (uint8_t)temp;
-          data[8] = temp >> 8; 
-
-          //YawRate
-          temp = (int16_t)gyroSum;
-          temp = temp * 0.1;
-          data[9] = (uint8_t)temp;
-          data[10] = temp >> 8;
-        
-      }
-      
-    //checksum
-      int16_t CK_A = 0;
-    
-      for (int16_t i = 2; i < dataSize - 1; i++)
-      {
-          CK_A = (CK_A + data[i]);
-      }
-      
-      data[dataSize - 1] = CK_A;
-
-      if (useCMPS || useBNO08x)
-      {
-      //off to AOG
-      Udp.beginPacket(remote, 9999);
-      Udp.write(data, dataSize);
-      Udp.endPacket();
-      }   
-    }
-//-----End IMU Timed Loop-----
-
 //Gyro Timmed loop
 
-  IMU_currentTime = millis();
+  IMU_currentTime = systick_millis_count;
 
   if ((IMU_currentTime - lastGyroTime) >= GYRO_LOOP_TIME)
-    {
-      lastGyroTime = IMU_currentTime;
-      
+    {      
       if (useCMPS)
-      {
+        {
       //Get the Z gyro
       Wire.beginTransmission(CMPS14_ADDRESS);
       Wire.write(0x16);
@@ -736,30 +684,16 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
 
       //Complementary filter
       gyroSum = 0.96 * gyroSum + 0.04 * gyro;
-
-      //roll
-      Wire.beginTransmission(CMPS14_ADDRESS);
-      Wire.write(0x1C);
-      Wire.endTransmission();
-
-      Wire.requestFrom(CMPS14_ADDRESS, 2);
-      while (Wire.available() < 2);
-
-      roll = int16_t(Wire.read() << 8 | Wire.read());
-
-      //Complementary filter
-      //rollSum = 0.9 * rollSum + 0.1 * roll;
-      rollSum = roll;
-  }          
+      }          
       
-      else if(useBNO08x)
-      {
+      else if (useBNO08x)
+        {
         if (bno08x.dataAvailable() == true)
-       {
-            gyro = (bno08x.getFastGyroZ()) * CONST_180_DIVIDED_BY_PI; // Get raw yaw rate - Fast Gyro
-            gyro = gyro * -100;
+          {
+            gyro = (bno08x.getGyroZ()) * RAD_TO_DEG; // Get raw yaw rate
+            gyro = gyro * -10;
 
-            bno08xHeading = (bno08x.getYaw()) * CONST_180_DIVIDED_BY_PI; // Convert yaw / heading to degrees
+            bno08xHeading = (bno08x.getYaw()) * RAD_TO_DEG; // Convert yaw / heading to degrees
             bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
 
             if (bno08xHeading < 0 && bno08xHeading >= -180) //Scale BNO085 yaw from [-180�;180�] to [0;360�]
@@ -767,9 +701,15 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
                 bno08xHeading = bno08xHeading + 360;
             }
 
-            roll = (bno08x.getRoll()) * CONST_180_DIVIDED_BY_PI;
-            pitch = (bno08x.getPitch()) * CONST_180_DIVIDED_BY_PI;
+            if (swapRollPitch){
+            roll = (bno08x.getPitch()) * RAD_TO_DEG;
+            pitch = (bno08x.getRoll()) * RAD_TO_DEG;
+            }
+            else{
+            roll = (bno08x.getRoll()) * RAD_TO_DEG;
+            pitch = (bno08x.getPitch()) * RAD_TO_DEG;
             pitch = pitch * -1;
+            }
 
             roll = roll * 10;
             pitch = pitch * 10;
@@ -777,10 +717,13 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
 
             //Complementary filter
             rollSum = roll;
-            pitchSum = 0.9 * pitchSum + 0.1 * pitch;
+            pitchSum = pitch;
             gyroSum = 0.96 * gyroSum + 0.04 * gyro;
         }
-      }     
+    }
+
+  //save time to check for 10 msec
+  lastGyroTime = systick_millis_count;     
     }
 //-----End Gyro Timed Loop-----
 
@@ -793,7 +736,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
   ISO_Receive();
   K_Receive();
 
-  if ((millis()) > relayTime){
+  if ((systick_millis_count) > relayTime){
     digitalWrite(engageLED,LOW);
     engageCAN = 0;
     }
@@ -933,14 +876,6 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
 
       // Stop sending the helloAgIO message
       helloCounter = 0;
-
-      IMU_lastTime = millis();
-      isTriggered = true;
-
-      if (blink)
-        digitalWrite(13, HIGH);
-      else digitalWrite(13, LOW);
-      blink = !blink;
 
       //Serial.println(steerAngleActual); 
       //--------------------------------------------------------------------------    
