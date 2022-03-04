@@ -68,8 +68,6 @@ void GGA_Handler() //Rec'd GGA
     else digitalWrite(13, LOW);
     blink = !blink;
 
-    stringComplete == true;
-
    if (isLastSentenceGGA){
       if (useCMPS){
         gpsReadyTime = systick_millis_count;
@@ -86,8 +84,6 @@ void VTG_Handler()
 
     //vtg Speed knots
     if (parser.getArg(4, speedKnots));
-
-    stringComplete == true;
     
    if (!isLastSentenceGGA){
       if (useCMPS){

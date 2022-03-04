@@ -4,7 +4,6 @@ char txbuffer[512];   //Extra serial tx buffer
 
 char nmeaBuffer[150];
 int count=0;
-bool stringComplete = false;
 
 int test = 0;
 
@@ -56,9 +55,7 @@ void Forward_GPS()
   while (SerialGPS.available())
   {
     parser << SerialGPS.read();
-    if(stringComplete == true)break;
    } 
-  stringComplete == false;
 }
 
 //**************************************************************

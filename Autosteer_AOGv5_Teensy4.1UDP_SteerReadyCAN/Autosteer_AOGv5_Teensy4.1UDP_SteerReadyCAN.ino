@@ -227,9 +227,10 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint8_t helloAgIO[] = {0x80,0x81, 0x7f, 0xC7, 1, 0, 0x47 };
   uint8_t helloCounter=0;
 
-  //fromAutoSteerData FD 253 - ActualSteerAngle*100 -5,6, SwitchByte-7, pwmDisplay-8
-  uint8_t AOG[] = {0x80,0x81, 0x7f, 0xFD, 8, 0, 0, 0, 0, 0,0,0,0, 0xCC };
-  int16_t AOGSize = sizeof(AOG);
+  //fromAutoSteerData FD 253
+  //ActualSteerAngle*100 5&6, Heading 7&8, Roll 9&10, SwitchByte 11, pwmDisplay 12, CRC 13
+  uint8_t PGN_253[] = {0x80,0x81, 0x7f, 0xFD, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0xCC};
+  int16_t PGN_253_Size = sizeof(PGN_253) - 1;
 
   //fromAutoSteerData FD 250 - sensor values etc
   uint8_t PGN_250[] = {0x80,0x81, 0x7f, 0xFA, 8, 0, 0, 0, 0, 0,0,0,0, 0xCC }; 
@@ -255,7 +256,8 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
   //On Off
   uint8_t guidanceStatus = 0;
-  uint8_t previousStatus = 0;
+  uint8_t prevGuidanceStatus = 1;
+  bool guidanceStatusChanged = false;
 
   //speed sent as *10
   float gpsSpeed = 0;
@@ -548,25 +550,22 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       {
         
       if (steeringValveReady != 20 && steeringValveReady != 16){            
-        steerSwitch = 1; // reset values like it turned off
-        currentState = 1;
-        previous = HIGH;
+          steerSwitch = 1;
+          previous = 0;
         }
          
-        if (previousStatus != guidanceStatus) 
+      if (guidanceStatusChanged && guidanceStatus == 1 && steerSwitch == 1 && previous == 0)
         {
-          if (guidanceStatus == 1 && steerSwitch == 1 && previousStatus == 0)
-          {
-            if (Brand == 3) steeringValveReady = 16;  //Fendt Valve Ready To Steer 
-            if (Brand == 5) steeringValveReady = 16;  //FendtOne Valve Ready To Steer  
-            steerSwitch = 0;
-          }
-          else
-          {
-            steerSwitch = 1;
-          } 
+          steerSwitch = 0;
+          previous = 1;
         }
-        previousStatus = guidanceStatus;           
+
+      // This will set steerswitch off and make the above check wait until the guidanceStatus has gone to 0
+      if (guidanceStatusChanged && guidanceStatus == 0 && steerSwitch == 0 && previous == 1)
+        {
+          steerSwitch = 1;
+          previous = 0;
+        }        
       }
       
       if (steerConfig.ShaftEncoder && pulseCount >= steerConfig.PulseCountMax) 
@@ -790,9 +789,17 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
   {
     if (udpData[3] == 0xFE)  //254
     {
+      //bit 5,6
       gpsSpeed = ((float)(udpData[5] | udpData[6] << 8))*0.1;
 
+      //bit 7
+      prevGuidanceStatus = guidanceStatus;
+      
       guidanceStatus = udpData[7];
+      guidanceStatusChanged = (guidanceStatus != prevGuidanceStatus);
+
+      if ((bitRead(guidanceStatus,0) == 1) && guidanceStatusChanged) bitClear(switchByte,1); 
+      //if guidance status changed & is now on, tell AgOpen the steerswitch is on, if its not next round will cut the remote on tablet
       
       //Bit 8,9    set point steer angle * 100 is sent
       steerAngleSetPoint = ((float)(udpData[8] | ((int8_t)udpData[9]) << 8))*0.01; //high low bytes
@@ -803,7 +810,7 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
 	  {
 		  watchdogTimer = WATCHDOG_FORCE_VALUE; //turn off steering motor
 	  }
-    else if (Brand != 3 && gpsSpeed < 0.1 && Brand != 5)                //Speed < 0.1 and not Fendt
+    else if (Brand != 3 && gpsSpeed < 0.5 && Brand != 5)                //Speed < 0.5 and not Fendt
     {
       watchdogTimer = WATCHDOG_FORCE_VALUE; //turn off steering motor
     }   
@@ -826,30 +833,30 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       
       int16_t sa = (int16_t)(steerAngleActual*100);
       
-      AOG[5] = (uint8_t)sa;
-      AOG[6] = sa >> 8;
+      PGN_253[5] = (uint8_t)sa;
+      PGN_253[6] = sa >> 8;
       
-        //heading         
-        AOG[7] = (uint8_t)9999;
-        AOG[8] = 9999 >> 8;
+      //heading         
+      PGN_253[7] = (uint8_t)9999;
+      PGN_253[8] = 9999 >> 8;
 
-        //roll
-        AOG[9] = (uint8_t)8888;  
-        AOG[10] = 8888 >> 8;       
+      //roll
+      PGN_253[9] = (uint8_t)8888;  
+      PGN_253[10] = 8888 >> 8;       
       
-      AOG[11] = switchByte;
-      AOG[12] = (uint8_t)pwmDisplay;
+      PGN_253[11] = switchByte;
+      PGN_253[12] = (uint8_t)pwmDisplay;
           
       //checksum
       int16_t CK_A = 0;
-      for (uint8_t i = 2; i < AOGSize - 1; i++)      
-        CK_A = (CK_A + AOG[i]);
+      for (uint8_t i = 2; i < PGN_253_Size; i++)      
+        CK_A = (CK_A + PGN_253[i]);
       
-      AOG[AOGSize - 1] = CK_A;
+      PGN_253[PGN_253_Size] = CK_A;
       
       //off to AOG
       Udp.beginPacket(remote, 9999);
-      Udp.write(AOG, AOGSize);
+      Udp.write(PGN_253, sizeof(PGN_253));
       Udp.endPacket();
 
       //Steer Data 2 -------------------------------------------------
