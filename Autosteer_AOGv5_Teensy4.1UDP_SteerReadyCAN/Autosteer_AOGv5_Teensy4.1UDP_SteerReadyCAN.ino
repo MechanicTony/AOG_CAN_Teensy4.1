@@ -360,9 +360,9 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           {
             Wire.setClock(400000); //Increase I2C data rate to 400kHz
   
-            // Use GyroIntegratedRotationVector
+            // Use GameRotationVector
             bno08x.enableGyro(GYRO_LOOP_TIME);
-            bno08x.enableGyroIntegratedRotationVector(GYRO_LOOP_TIME-1); //Send data update every REPORT_INTERVAL in ms for BNO085, looks like this cannot be identical to the other reports for it to work...
+            bno08x.enableGameRotationVector(GYRO_LOOP_TIME-1); //Send data update every REPORT_INTERVAL in ms for BNO085, looks like this cannot be identical to the other reports for it to work...
   
             // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
             if (bno08x.getFeatureResponseAvailable() == true)
@@ -584,7 +584,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
       steeringPosition = (setCurve - 32128 + steerSettings.wasOffset); 
       if (Brand == 3) steerAngleActual = (float)(steeringPosition) / (steerSettings.steerSensorCounts * 10);  //Fendt Only
-      if (Brand == 5) steerAngleActual = (float)(steeringPosition) / (steerSettings.steerSensorCounts * 10);  //Fendt Only
+      else if (Brand == 5) steerAngleActual = (float)(steeringPosition) / (steerSettings.steerSensorCounts * 10);  //Fendt Only
       else steerAngleActual = (float)(steeringPosition) / steerSettings.steerSensorCounts;
       }
       
@@ -756,7 +756,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
       {
         if (bno08x.dataAvailable() == true)
        {
-            gyro = (bno08x.getFastGyroZ()) * CONST_180_DIVIDED_BY_PI; // Get raw yaw rate - Fast Gyro
+            gyro = (bno08x.getGyroZ()) * CONST_180_DIVIDED_BY_PI; // Get raw yaw rate - Fast Gyro
             gyro = gyro * -100;
 
             bno08xHeading = (bno08x.getYaw()) * CONST_180_DIVIDED_BY_PI; // Convert yaw / heading to degrees
