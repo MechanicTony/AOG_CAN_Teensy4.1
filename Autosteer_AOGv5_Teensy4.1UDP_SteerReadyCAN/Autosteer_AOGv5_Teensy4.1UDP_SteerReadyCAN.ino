@@ -8,13 +8,13 @@
 
 //----------------------------------------------------------
 
-//Tony / @Commonrail On Board GPS Version 03.03.2022
+//Tony / @Commonrail On Board GPS Version 11.06.2022
 
 //GGA/VTG to Serial3 @ 115200
 //Forward Ntrip from AgIO (Port 2233) to Serial3
 //BNO08x/CMPS14 Data sent with GPS data in PANDA format.
-//BNO08x IMU sampled at 100hz (every 10msec) - Roll, Pitch, Heading, Yaw rate.
-//CMPS Yaw Rate sampled at 100hz, Roll + Heading sampled when GPS recived. 
+//BNO08x IMU sampled at 50hz (every 20msec) - Roll, Pitch, Heading.
+//CMPS Roll + Heading sampled when GPS recived. 
 
 //This CAN setup is for CANBUS based steering controllers as below:
 //Danfoss PVED-CL & PVED-CLS (Claas, JCB, Massey Fergerson, CaseIH, New Holland, Valtra, Deutz, Lindner)
@@ -86,7 +86,8 @@
 
 //----GPS Settings--Start----------------------------
 //Serial Ports
-#define SerialGPS Serial3
+#define SerialGPS Serial3     //Origanal @CommonRail PCB
+//#define SerialGPS Serial7     //Other CAN PCB's
  
 //is the GGA the second sentence?
 const bool isLastSentenceGGA = true;
@@ -99,16 +100,16 @@ const int32_t baudAOG = 115200;
 const int32_t baudGPS = 115200;
 
 //BNO08x, time after last GPS to load up IMU ready data for the next Panda takeoff
-const uint16_t IMU_DELAY_TIME = 90; //Best results seem to be 90-95ms
+const uint16_t IMU_DELAY_TIME = 80; 
 uint32_t IMU_lastTime = IMU_DELAY_TIME;
 uint32_t IMU_currentTime = IMU_DELAY_TIME;
 
 //BNO08x, how offen should we get data from IMU (The above will just grab this data without reading IMU)
-const uint16_t GYRO_LOOP_TIME = 10;  
+const uint16_t GYRO_LOOP_TIME = 20;  
 uint32_t lastGyroTime = GYRO_LOOP_TIME;
 
 //CMPS14, how long should we wait with GPS before reading data from IMU then takeoff with Panda
-const uint16_t CMPS_DELAY_TIME = 4;  //Best results seem to be around 5ms
+const uint16_t CMPS_DELAY_TIME = 1;  
 uint32_t gpsReadyTime = CMPS_DELAY_TIME;
 
 /* A parser is declared with 3 handlers at most */
@@ -335,11 +336,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     Serial.begin(115200);
 
     delay (2000);
-
-  /*    while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }*/
-  
+ 
     //test if CMPS working
     uint8_t error;
     Wire.beginTransmission(CMPS14_ADDRESS);
@@ -385,15 +382,12 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
             Wire.setClock(400000); //Increase I2C data rate to 400kHz
   
             // Use GyroIntegratedRotationVector
-            bno08x.enableGyro(GYRO_LOOP_TIME);
-            //bno08x.enableGameRotationVector(GYRO_LOOP_TIME - 1);
-            bno08x.enableGyroIntegratedRotationVector(GYRO_LOOP_TIME-1); //Send data update every REPORT_INTERVAL in ms for BNO085, looks like this cannot be identical to the other reports for it to work...
+            bno08x.enableGameRotationVector(GYRO_LOOP_TIME);
   
             // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
             if (bno08x.getFeatureResponseAvailable() == true)
             {
-              if (bno08x.checkReportEnable(SENSOR_REPORTID_GYRO_INTEGRATED_ROTATION_VECTOR, (GYRO_LOOP_TIME-1)) == false) bno08x.printGetFeatureResponse();
-              if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, (GYRO_LOOP_TIME-1)) == false) bno08x.printGetFeatureResponse();
+              if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, (GYRO_LOOP_TIME)) == false) bno08x.printGetFeatureResponse();
 
               // Break out of loop
               useBNO08x = true;
@@ -475,7 +469,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
 //----Teensy 4.1 CANBus--End---------------------
 
-  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 01.03.2022");
+  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS OnBoard GPS Ver 11.06.2022");
   Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
   Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 
@@ -668,28 +662,12 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
   IMU_currentTime = systick_millis_count;
 
   if ((IMU_currentTime - lastGyroTime) >= GYRO_LOOP_TIME)
-    {      
-      if (useCMPS)
-        {
-      //Get the Z gyro
-      Wire.beginTransmission(CMPS14_ADDRESS);
-      Wire.write(0x16);
-      Wire.endTransmission();
-
-      Wire.requestFrom(CMPS14_ADDRESS, 2);
-      while (Wire.available() < 2);
-
-      gyro = int16_t(Wire.read() << 8 | Wire.read());
-
-      //Complementary filter
-      gyroSum = 0.96 * gyroSum + 0.04 * gyro;
-      }          
-      
-      else if (useBNO08x)
+    {             
+      if (useBNO08x)
         {
         if (bno08x.dataAvailable() == true)
           {
-            gyro = (bno08x.getGyroZ()) * RAD_TO_DEG; // Get raw yaw rate
+/*            gyro = (bno08x.getGyroZ()) * RAD_TO_DEG; // Get raw yaw rate
             gyro = gyro * -10;
 
             bno08xHeading = (bno08x.getYaw()) * RAD_TO_DEG; // Convert yaw / heading to degrees
@@ -699,7 +677,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
             {
                 bno08xHeading = bno08xHeading + 360;
             }
-
+*/
             if (swapRollPitch){
             roll = (bno08x.getPitch()) * RAD_TO_DEG;
             pitch = (bno08x.getRoll()) * RAD_TO_DEG;
@@ -717,7 +695,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
             //Complementary filter
             rollSum = roll;
             pitchSum = pitch;
-            gyroSum = 0.96 * gyroSum + 0.04 * gyro;
+//            gyroSum = 0.96 * gyroSum + 0.04 * gyro;
         }
     }
 
