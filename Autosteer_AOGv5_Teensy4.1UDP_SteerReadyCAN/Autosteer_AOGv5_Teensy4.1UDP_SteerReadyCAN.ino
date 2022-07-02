@@ -13,7 +13,8 @@
 //GPS to Serial3 @ 115200, Forward to AgIO via UDP
 //Forward Ntrip from AgIO (Port 2233) to Serial3
 //BNO08x/CMPS14 Data sent as IMU message (Not in Steering Message), timmed from steering message from AgOpen.
-//IMU sampled at 100hz (every 10msec)
+//BNO08x sampled at 100hz (every 10msec), only last one is used
+//CMPS14 sampled once per steering message when needed
 
 //This CAN setup is for CANBUS based steering controllers as below:
 //Danfoss PVED-CL & PVED-CLS (Claas, JCB, Massey Fergerson, CaseIH, New Holland, Valtra, Deutz, Lindner)
@@ -361,14 +362,12 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
             Wire.setClock(400000); //Increase I2C data rate to 400kHz
   
             // Use GameRotationVector
-            bno08x.enableGyro(GYRO_LOOP_TIME);
-            bno08x.enableGameRotationVector(GYRO_LOOP_TIME-1); //Send data update every REPORT_INTERVAL in ms for BNO085, looks like this cannot be identical to the other reports for it to work...
+            bno08x.enableGameRotationVector(GYRO_LOOP_TIME); 
   
             // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
             if (bno08x.getFeatureResponseAvailable() == true)
             {
-              if (bno08x.checkReportEnable(SENSOR_REPORTID_GYRO_INTEGRATED_ROTATION_VECTOR, (GYRO_LOOP_TIME-1)) == false) bno08x.printGetFeatureResponse();
-              if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, (GYRO_LOOP_TIME-1)) == false) bno08x.printGetFeatureResponse();
+              if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, (GYRO_LOOP_TIME)) == false) bno08x.printGetFeatureResponse();
 
               // Break out of loop
               useBNO08x = true;
@@ -662,19 +661,21 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
         while(Wire.available() < 2);       
       
         //the heading x10
-        data[5] = Wire.read();
         data[6] = Wire.read();
-            
-        //the roll x10
-        temp = (int16_t)rollSum;
-        data[7] = (uint8_t)temp;
-        data[8] = temp >> 8;  
+        data[5] = Wire.read();
+                    
+        //roll
+        Wire.beginTransmission(CMPS14_ADDRESS);
+        Wire.write(0x1C);
+        Wire.endTransmission();
 
-        //YawRate
-        temp = (int16_t)gyroSum;
-        data[9] = (uint8_t)temp;
-        data[10] = temp >> 8;
+        Wire.requestFrom(CMPS14_ADDRESS, 2);
+        while (Wire.available() < 2);
+        
+        data[8] = Wire.read();
+        data[7] = Wire.read();
       }
+      
       else if(useBNO08x)
       {
           //the heading x10
@@ -684,14 +685,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
           //the roll x10
           temp = (int16_t)rollSum;
           data[7] = (uint8_t)temp;
-          data[8] = temp >> 8; 
-
-          //YawRate
-          temp = (int16_t)gyroSum;
-          temp = temp * 0.1;
-          data[9] = (uint8_t)temp;
-          data[10] = temp >> 8;
-        
+          data[8] = temp >> 8;        
       }
       
     //checksum
@@ -722,43 +716,10 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
     {
       lastGyroTime = IMU_currentTime;
       
-      if (useCMPS)
-      {
-      //Get the Z gyro
-      Wire.beginTransmission(CMPS14_ADDRESS);
-      Wire.write(0x16);
-      Wire.endTransmission();
-
-      Wire.requestFrom(CMPS14_ADDRESS, 2);
-      while (Wire.available() < 2);
-
-      gyro = int16_t(Wire.read() << 8 | Wire.read());
-
-      //Complementary filter
-      gyroSum = 0.96 * gyroSum + 0.04 * gyro;
-
-      //roll
-      Wire.beginTransmission(CMPS14_ADDRESS);
-      Wire.write(0x1C);
-      Wire.endTransmission();
-
-      Wire.requestFrom(CMPS14_ADDRESS, 2);
-      while (Wire.available() < 2);
-
-      roll = int16_t(Wire.read() << 8 | Wire.read());
-
-      //Complementary filter
-      //rollSum = 0.9 * rollSum + 0.1 * roll;
-      rollSum = roll;
-  }          
-      
-      else if(useBNO08x)
+      if(useBNO08x)
       {
         if (bno08x.dataAvailable() == true)
        {
-            gyro = (bno08x.getGyroZ()) * CONST_180_DIVIDED_BY_PI; // Get raw yaw rate - Fast Gyro
-            gyro = gyro * -100;
-
             bno08xHeading = (bno08x.getYaw()) * CONST_180_DIVIDED_BY_PI; // Convert yaw / heading to degrees
             bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
 
@@ -778,7 +739,6 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
             //Complementary filter
             rollSum = roll;
             pitchSum = 0.9 * pitchSum + 0.1 * pitch;
-            gyroSum = 0.96 * gyroSum + 0.04 * gyro;
         }
       }     
     }
