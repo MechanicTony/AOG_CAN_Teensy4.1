@@ -35,7 +35,8 @@ if (Brand == 3){
   V_Bus.setFIFOFilter(0, 0x0CEF2CF0, EXT);  //Fendt Curve Data & Valve State Message
   }   
 if (Brand == 4){
-  V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT);  //Fendt Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT);  //JCB Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(1, 0x18EFAB27, EXT);  //JCB engage message
   }
 if (Brand == 5){
   V_Bus.setFIFOFilter(0, 0x0CEF2CF0, EXT);  //FendtONE Curve Data & Valve State Message
