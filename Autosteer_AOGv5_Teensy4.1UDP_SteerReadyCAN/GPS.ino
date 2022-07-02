@@ -1,9 +1,11 @@
 
+#define GPS Serial3
 char rxbuffer[512];   //Extra serial rx buffer
 char txbuffer[512];   //Extra serial tx buffer
 
 char nmeaBuffer[150];
 int count=0;
+bool stringComplete = false;
 
 int test = 0;
 
@@ -11,52 +13,34 @@ int test = 0;
 
 void GPS_setup()
 {
-  SerialGPS.begin(baudGPS);
-  SerialGPS.addMemoryForRead(rxbuffer, 512);
-  SerialGPS.addMemoryForWrite(txbuffer, 512);
-
-  //the dash means wildcard
-  parser.setErrorHandler(errorHandler);
-  parser.addHandler("G-GGA", GGA_Handler);
-  parser.addHandler("G-VTG", VTG_Handler);
-      
+  GPS.begin(115200);
+  GPS.addMemoryForRead(rxbuffer, 512);
+  GPS.addMemoryForWrite(txbuffer, 512);
 }
 
 //**************************************************************
 
 void Forward_GPS()
-{ 
-  IMU_currentTime = systick_millis_count;
-  
-  if (useBNO08x)
-    {  
-      if (isTriggered && IMU_currentTime - IMU_lastTime >= IMU_DELAY_TIME)
-      {
-        //Load up BNO08x data from gyro loop ready for takeoff
-        imuHandler();
-
-        //reset the timer 
-        isTriggered = false;
-      }      
-    }
-
-  if (useCMPS)
-    { 
-      if (isTriggered && IMU_currentTime - gpsReadyTime >= CMPS_DELAY_TIME)
-      {
-        imuHandler(); //Get data from CMPS (Heading, Roll, Pitch) and load up ready for takeoff
-        BuildPANDA(); //Send Panda
-
-        //reset the timer 
-        isTriggered = false;
-      }
-    }
-  
-  while (SerialGPS.available())
+{
+  while (GPS.available())
   {
-    parser << SerialGPS.read();
+    char c = GPS.read();
+    nmeaBuffer[count++] = c;
+    if(c == '\n')stringComplete = true;
+    if(count == 150 || stringComplete == true)break;
    } 
-}
+
+  if(count == 150 || stringComplete == true){ 
+    if (stringComplete == true){  
+      Udp.beginPacket(remote, AOGPort);
+      Udp.write(nmeaBuffer,count);
+      Udp.endPacket();
+    }
+    clearBufferArray();
+    count = 0;
+  }
+  
+ }
 
 //**************************************************************
 
@@ -73,6 +57,19 @@ void Forward_Ntrip()
         //Serial.write(NtripData, sizeof(NtripData)); 
         //Serial.write(10);
         Serial.println("Ntrip Forwarded");
-        SerialGPS.write(NtripData, NtripSize); 
+        GPS.write(NtripData, NtripSize); 
   }
-} 
+}
+    
+//-------------------------------------------------------------------------------------------------
+
+void clearBufferArray()
+{
+  for (int i=0; i<count; i++)
+  {
+    nmeaBuffer[i]=NULL;
+    stringComplete = false;
+  }
+}
+     
+   
