@@ -8,7 +8,10 @@
 
 //----------------------------------------------------------
 
-//Tony / @Commonrail Version 03.02.2022
+//Tony / @Commonrail Version 02.07.2022
+//30.06.2022 Ryan / @RGM Added JCB CAN engage message
+//02.07.2022  - Added Claas headland from Ryan (May still need newer version?)
+//            - Fix up pilot valve output for Ryan Claas wiring mod    
 
 //GPS to Serial3 @ 115200, Forward to AgIO via UDP
 //Forward Ntrip from AgIO (Port 2233) to Serial3
@@ -138,6 +141,9 @@ byte endLift[8]        = {0x15, 0x21, 0x06, 0xCA, 0x00, 0x04, 0x00, 0x00} ;    /
 //byte goLift[8]         = {0x15, 0x22, 0x06, 0xCA, 0x00, 0x02, 0x00, 0x00} ;    //  lift little go
 //byte endPress[8]       = {0x15, 0x23, 0x06, 0xCA, 0x80, 0x03, 0x00, 0x00} ;    //  press little end
 //byte endLift[8]        = {0x15, 0x23, 0x06, 0xCA, 0x00, 0x04, 0x00, 0x00} ;    //  lift little end
+
+byte csm1Press[8]        = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A} ; // CLAAS CSM1 button press
+byte csm2Press[8]        = {0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22} ; // CLAAS CSM2 button press
 
 uint16_t setCurve = 32128;       //Variable for Set Curve to CAN
 uint16_t estCurve = 32128;       //Variable for WAS from CAN
@@ -449,7 +455,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
 //----Teensy 4.1 CANBus--End---------------------
 
-  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 01.03.2022");
+  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 02.07.2022");
   Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
   Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 
@@ -608,9 +614,11 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       else
       {
         //we've lost the comm to AgOpenGPS, or just stop request
-        digitalWrite(PWM2_RPWM, 0);       
+        //****** If CAN engage is ON (1), don't turn off saftey valve ******
+          if (engageCAN == 0){  
+            digitalWrite(PWM2_RPWM, 0); 
+          }
 
-        
         intendToSteer = 0; //CAN Curve NOT Inteeded for Steering   
         if (Brand !=7 ){     
         pwmDrive = 0; //turn off steering motor
@@ -1039,7 +1047,7 @@ void SetRelaysFendt(void)
     if (hydLift == 1) bitState = 1;
     if (hydLift == 2) bitState = 0;    
   }
-
+//Only if tool lift is enabled AgOpen will press headland buttions via CAN
 if (aogConfig.enableToolLift == 1){
   if (bitState  && !bitStateOld) pressGo(); //Press Go button - CAN Page
   if (!bitState && bitStateOld) pressEnd(); //Press End button - CAN Page
@@ -1051,6 +1059,20 @@ if (aogConfig.enableToolLift == 1){
 
 void SetRelaysClaas(void)
 {
-//Put Claas code here like Fendt above & put the CAN code one the CAN page (Like Fendt K-Bus)
+//If Invert Relays is selected in hitch settings, Section 1 is used as trigger.  
+if (aogConfig.isRelayActiveHigh == 1){
+    bitState = (bitRead(relay, 0));
+  }
+//If not selected hitch command is used on headland used as Trigger  
+  else{
+    if (hydLift == 1) bitState = 1;
+    if (hydLift == 2) bitState = 0;    
+  }
+//Only if tool lift is enabled AgOpen will press headland buttions via CAN
+if (aogConfig.enableToolLift == 1){
+  if (bitState  && !bitStateOld) pressCSM1(); //Press Go button - CAN Page
+  if (!bitState && bitStateOld) pressCSM2(); //Press End button - CAN Page
+}
 
+  bitStateOld = bitState;
 }
