@@ -35,7 +35,8 @@ if (Brand == 3){
   V_Bus.setFIFOFilter(0, 0x0CEF2CF0, EXT);  //Fendt Curve Data & Valve State Message
   }   
 if (Brand == 4){
-  V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT);  //Fendt Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT);  //JCB Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(0, 0x18EFAB27, EXT);  //JCB engage message
   }
 if (Brand == 5){
   V_Bus.setFIFOFilter(0, 0x0CEF2CF0, EXT);  //FendtONE Curve Data & Valve State Message
@@ -290,64 +291,34 @@ if (Brand == 0){
   if (VBusReceiveData.id == 0x18EF1CD2){
    if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 0){   //Ryan Stage5 Models?
       engageCAN = bitRead(VBusReceiveData.buf[0],2);
-      Time = systick_millis_count;
+      Time = millis();
       digitalWrite(engageLED,HIGH); 
-      relayTime = ((systick_millis_count + 1000));
+      relayTime = ((millis() + 1000));
       //*****Turn saftey valve ON**********
-     if (engageCAN == 1){
-      if (steerConfig.CytronDriver) 
-        {
-          if (steerConfig.IsRelayActiveHigh) 
-          {
-            digitalWrite(PWM2_RPWM, 0); 
-          }
-          else  
-          {
-            digitalWrite(PWM2_RPWM, 1);       
-          }        
-        }
-   }
+      if (engageCAN == 1){
+      digitalWrite(PWM2_RPWM, 1);       
+      }
    }
 
   else if ((VBusReceiveData.buf[0])== 39 && (VBusReceiveData.buf[2])== 241){   //Ryan MR Models?
       engageCAN = bitRead(VBusReceiveData.buf[1],0);
-      Time = systick_millis_count;
+      Time = millis();
       digitalWrite(engageLED,HIGH); 
-      relayTime = ((systick_millis_count + 1000));
+      relayTime = ((millis() + 1000));
       //*****Turn saftey valve ON**********
-     if (engageCAN == 1){
-      if (steerConfig.CytronDriver) 
-        {
-          if (steerConfig.IsRelayActiveHigh) 
-          {
-            digitalWrite(PWM2_RPWM, 0); 
-          }
-          else  
-          {
-            digitalWrite(PWM2_RPWM, 1);       
-          }        
-        }
-   }
+      if (engageCAN == 1){
+      digitalWrite(PWM2_RPWM, 1);       
+      }
    }
   
    else if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 125){ //Tony Non MR Models? Ryan Mod to bit read engage bit
       engageCAN = bitRead(VBusReceiveData.buf[0],2);
-      Time = systick_millis_count;
+      Time = millis();
       digitalWrite(engageLED,HIGH); 
-      relayTime = ((systick_millis_count + 1000));
+      relayTime = ((millis() + 1000));
       //*****Turn saftey valve ON**********
       if (engageCAN == 1){
-      if (steerConfig.CytronDriver) 
-        {
-          if (steerConfig.IsRelayActiveHigh) 
-          {
-            digitalWrite(PWM2_RPWM, 0); 
-          }
-          else  
-          {
-            digitalWrite(PWM2_RPWM, 1);       
-          }        
-        }
+      digitalWrite(PWM2_RPWM, 1);       
       }
    }
   } 
@@ -405,7 +376,17 @@ if (Brand == 0){
         estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
         steeringValveReady = (VBusReceiveData.buf[2]); 
   } 
-   
+
+//**Engage Message**
+  if (VBusReceiveData.id == 0x18EFAB27){
+    if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1){
+      Time = millis();
+      digitalWrite(engageLED,HIGH); 
+      engageCAN = 1;
+      relayTime = ((millis() + 1000));
+   }
+  }    
+      
 }//End Brand == 4  
 if (Brand == 5){
 //**Current Wheel Angle**
@@ -592,6 +573,30 @@ CAN_message_t buttonData;
 for ( uint8_t i = 0; i <= sizeof(endLift); i++ ) buttonData.buf[i] = endLift[i];
    K_Bus.write(buttonData);
    endDown = false;
+}
+
+// CLAAS CSM buttons Start
+void pressCSM1()
+{                                     
+ CAN_message_t buttonData;
+ buttonData.id = 0x14204146;
+ buttonData.flags.extended = true;
+ buttonData.len = 8;
+for ( uint8_t i = 0; i <= sizeof(csm1Press); i++ ) buttonData.buf[i] = csm1Press[i];
+   K_Bus.write(buttonData);
+   goDown = true;
+   Serial.println("Press CSM1");
+}
+
+void pressCSM2() {
+  CAN_message_t buttonData;
+ buttonData.id = 0x14204146;
+ buttonData.flags.extended = true;
+ buttonData.len = 8;
+for ( uint8_t i = 0; i <= sizeof(csm2Press); i++ ) buttonData.buf[i] = csm2Press[i];
+   K_Bus.write(buttonData);
+   endDown = true;
+   Serial.println("Press CSM2");
 }
 
 void canConfig(){
