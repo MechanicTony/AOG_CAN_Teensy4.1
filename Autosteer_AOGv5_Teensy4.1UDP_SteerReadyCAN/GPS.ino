@@ -32,7 +32,7 @@ void Forward_GPS()
 
   if(count == 150 || stringComplete == true){ 
     if (stringComplete == true){  
-      Udp.beginPacket(remote, AOGPort);
+      Udp.beginPacket(ipDestination, AOGPort);
       Udp.write(nmeaBuffer,count);
       Udp.endPacket();
     }

@@ -59,7 +59,7 @@
   /////////////////////////////////////////////
 
   // if not in eeprom, overwrite 
-  #define EEP_Ident 5100 
+  #define EEP_Ident 0x5417
 
   //   ***********  Motor drive connections  **************888
   //Connect ground only for cytron, Connect Ground and +5v for IBT2
@@ -88,18 +88,24 @@
 //----Teensy 4.1 Ethernet--Start---------------------
   #include <NativeEthernet.h>
   #include <NativeEthernetUdp.h>
+
+    struct ConfigIP {
+        uint8_t ipOne = 192;
+        uint8_t ipTwo = 168;
+        uint8_t ipThree = 1;
+    };  ConfigIP networkAddress;   //3 bytes
   
   // Module IP Address / Port
-  IPAddress ip(192, 168, 1, 73);
+  static uint8_t ip[] = { 0,0,0,126 };
   unsigned int localPort = 8888;  
   unsigned int NtripPort = 2233;    
   
   // AOG IP Address / Port
-  IPAddress remote(192, 168, 1, 255);
+  static uint8_t ipDestination[] = {0,0,0,255};
   unsigned int AOGPort = 9999;
 
   //MAC address
-  byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+  byte mac[] = { 0x00,0x00,0x56,0x00,0x00,0x7E };
   
   // Buffer For Receiving UDP Data
   byte udpData[UDP_TX_PACKET_MAX_SIZE];  // Incomming Buffer
@@ -208,10 +214,14 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint8_t pgn = 0, dataLength = 0, idx = 0;
   int16_t tempHeader = 0;
 
-  //show life in AgIO
+  //show life in AgIO - v5.5
   uint8_t helloAgIO[] = {0x80,0x81, 0x7f, 0xC7, 1, 0, 0x47 };
   uint8_t helloCounter=0;
-
+  
+  //Heart beat hello AgIO - v5.6
+  uint8_t helloFromAutoSteer[] = { 128, 129, 126, 126, 5, 0, 0, 0, 0, 0, 71 };
+  int16_t helloSteerPosition = 0;
+    
   //fromAutoSteerData FD 253 - ActualSteerAngle*100 -5,6, SwitchByte-7, pwmDisplay-8
   uint8_t AOG[] = {0x80,0x81, 0x7f, 0xFD, 8, 0, 0, 0, 0, 0,0,0,0, 0xCC };
   int16_t AOGSize = sizeof(AOG);
@@ -405,12 +415,14 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       EEPROM.put(6, aogConfig); //Machine
       EEPROM.put(10, steerSettings);   
       EEPROM.put(40, steerConfig);
+      EEPROM.put(60, networkAddress);      
     }
     else 
     { 
       EEPROM.get(6, aogConfig); //Machine
       EEPROM.get(10, steerSettings);     // read the Settings
       EEPROM.get(40, steerConfig);
+      EEPROM.get(60, networkAddress);      
     }
     
     // for PWM High to Low interpolator
@@ -418,10 +430,29 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
          
 //----Teensy 4.1 Ethernet--Start---------------------
 
-  Serial.println("\r\nStarting Ethernet, Is Cable Connected to Router?");
-     
-  Ethernet.begin(mac, ip);
+  Ethernet.begin(mac,0);          // Start Ethernet with IP 0.0.0.0
+  
+  delay(500);
+  
+  if (Ethernet.linkStatus() == LinkOFF) 
+  {
+    Serial.println("\r\nEthernet cable is not connected - Who cares we will start ethernet anyway.");
+  }  
+  
+//grab the ip from EEPROM
+  ip[0] = networkAddress.ipOne;
+  ip[1] = networkAddress.ipTwo;
+  ip[2] = networkAddress.ipThree;
 
+  ipDestination[0] = networkAddress.ipOne;
+  ipDestination[1] = networkAddress.ipTwo;
+  ipDestination[2] = networkAddress.ipThree;
+      
+  Ethernet.setLocalIP(ip);  // Change IP address to IP set by user
+  Serial.println("\r\nEthernet status OK");
+  Serial.print("IP set Manually: ");
+  Serial.println(Ethernet.localIP());
+    
   Udp.begin(localPort);
   NtripUdp.begin(NtripPort);
 
@@ -639,7 +670,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
  //send empty pgn to AgIO to show activity
       if (++helloCounter > 10)
       {
-      Udp.beginPacket(remote, AOGPort);
+      Udp.beginPacket(ipDestination, AOGPort);
       Udp.write(helloAgIO, sizeof(helloAgIO));
       Udp.endPacket();
       helloCounter = 0;
@@ -709,7 +740,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
       if (useCMPS || useBNO08x)
       {
       //off to AOG
-      Udp.beginPacket(remote, 9999);
+      Udp.beginPacket(ipDestination, 9999);
       Udp.write(data, dataSize);
       Udp.endPacket();
       }   
@@ -873,7 +904,7 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       AOG[AOGSize - 1] = CK_A;
       
       //off to AOG
-      Udp.beginPacket(remote, 9999);
+      Udp.beginPacket(ipDestination, 9999);
       Udp.write(AOG, AOGSize);
       Udp.endPacket();
 
@@ -893,7 +924,7 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
            }
            PGN_250[PGN_250_Size] = CK_A;
 
-           Udp.beginPacket(remote, 9999);
+           Udp.beginPacket(ipDestination, 9999);
            Udp.write(PGN_250, sizeof(PGN_250));
            Udp.endPacket();
            aog2Count = 0;
@@ -913,7 +944,24 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       //Serial.println(steerAngleActual); 
       //--------------------------------------------------------------------------    
     }
+    
+    else if (udpData[3] == 200) // Hello from AgIO
+     {
+       int16_t sa = (int16_t)(steerAngleActual * 100);
 
+       helloFromAutoSteer[5] = (uint8_t)sa;
+       helloFromAutoSteer[6] = sa >> 8;
+
+       helloFromAutoSteer[7] = (uint8_t)helloSteerPosition;
+       helloFromAutoSteer[8] = helloSteerPosition >> 8;
+       helloFromAutoSteer[9] = switchByte;
+       
+       Udp.beginPacket(ipDestination, 9999);
+       Udp.write(helloFromAutoSteer, sizeof(helloFromAutoSteer));
+       Udp.endPacket();
+           
+      }
+          
 //Machine Data
     else if (udpData[3] == 0xEF)  //239 Machine Data
     {
@@ -1017,7 +1065,51 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
       pgn=dataLength=0; 
        
     }//end FB
-  } //end if 80 81 7F  
+
+    else if (udpData[3] == 201)
+    {
+     //make really sure this is the subnet pgn
+     if (udpData[4] == 5 && udpData[5] == 201 && udpData[6] == 201)
+     {
+      networkAddress.ipOne = udpData[7];
+      networkAddress.ipTwo = udpData[8];
+      networkAddress.ipThree = udpData[9];
+
+      //save in EEPROM and restart
+      EEPROM.put(60, networkAddress);
+      SCB_AIRCR = 0x05FA0004; //Teensy Reset
+      }
+    }//end 201
+
+    //Who Am I ?
+    else if (udpData[3] == 202)
+    {
+     //make really sure this is the reply pgn
+     if (udpData[4] == 3 && udpData[5] == 202 && udpData[6] == 202)
+     {
+      //hello from AgIO
+      uint8_t scanReply[] = { 128, 129, 126, 203, 4,
+      networkAddress.ipOne, networkAddress.ipTwo, networkAddress.ipThree, 126, 23 };
+
+      //checksum
+      int16_t CK_A = 0;
+      for (uint8_t i = 2; i < sizeof(scanReply) - 1; i++)
+       {
+        CK_A = (CK_A + scanReply[i]);
+       }
+      scanReply[sizeof(scanReply)-1] = CK_A;
+
+      static uint8_t ipDest[] = { 255,255,255,255 };
+      uint16_t portDest = 9999; //AOG port that listens
+
+      //off to AOG
+       Udp.beginPacket(ipDest, portDest);
+       Udp.write(scanReply, sizeof(scanReply));
+       Udp.endPacket();
+      }
+     }//end 202
+    
+  } //end if 80 81 7F
 } //end udp callback
 
 
