@@ -448,8 +448,9 @@ if (ISO_Bus.read(ISOBusReceiveData)) {
   
   //**Work Message**
   if (ISOBusReceiveData.id == 0x0CFE45F0){
-    ISORearHitch = (ISOBusReceiveData.buf[0]);   
-    if (steerConfig.PressureSensor == 1 && ISORearHitch < steerConfig.PulseCountMax) workCAN = 1; 
+    ISORearHitch = (ISOBusReceiveData.buf[0]); 
+    if(Brand != 7) pressureReading = ISORearHitch;
+    if (steerConfig.PressureSensor == 1 && ISORearHitch < steerConfig.PulseCountMax && Brand != 7) workCAN = 1; 
     else workCAN = 0; 
   }
   
