@@ -3,7 +3,7 @@
 char rxbuffer[512];   //Extra serial rx buffer
 char txbuffer[512];   //Extra serial tx buffer
 
-char nmeaBuffer[150];
+char nmeaBuffer[200];
 int count=0;
 bool stringComplete = false;
 
@@ -27,10 +27,10 @@ void Forward_GPS()
     char c = GPS.read();
     nmeaBuffer[count++] = c;
     if(c == '\n')stringComplete = true;
-    if(count == 150 || stringComplete == true)break;
+    if(count == 200 || stringComplete == true)break;
    } 
 
-  if(count == 150 || stringComplete == true){ 
+  if(count == 200 || stringComplete == true){ 
     if (stringComplete == true){  
       Udp.beginPacket(ipDestination, AOGPort);
       Udp.write(nmeaBuffer,count);

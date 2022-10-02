@@ -722,7 +722,7 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
           data[6] = bno08xHeading10x >> 8;
   
           //the roll x10
-          temp = (int16_t)rollSum;
+          temp = (int16_t)roll;
           data[7] = (uint8_t)temp;
           data[8] = temp >> 8;        
       }
@@ -767,17 +767,11 @@ if (Brand == 0) SetRelaysClaas();  //If Brand = Claas run the hitch control bott
                 bno08xHeading = bno08xHeading + 360;
             }
 
-            roll = (bno08x.getRoll()) * CONST_180_DIVIDED_BY_PI;
-            pitch = (bno08x.getPitch()) * CONST_180_DIVIDED_BY_PI;
-            pitch = pitch * -1;
+            //roll = (bno08x.getRoll()) * CONST_180_DIVIDED_BY_PI;
+            roll = (bno08x.getPitch()) * CONST_180_DIVIDED_BY_PI;
 
             roll = roll * 10;
-            pitch = pitch * 10;
             bno08xHeading10x = (int16_t)(bno08xHeading * 10);
-
-            //Complementary filter
-            rollSum = roll;
-            pitchSum = 0.9 * pitchSum + 0.1 * pitch;
         }
       }     
     }
