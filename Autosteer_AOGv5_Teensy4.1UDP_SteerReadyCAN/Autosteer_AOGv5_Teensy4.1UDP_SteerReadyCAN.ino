@@ -47,7 +47,7 @@
   ////////////////// User Settings /////////////////////////  
 
   //How many degrees before decreasing Max PWM
-  #define LOW_HIGH_DEGREES 5.0
+  #define LOW_HIGH_DEGREES 3.0
 
   /*  PWM Frequency -> 
    *   490hz (default) = 0
@@ -84,6 +84,11 @@
   #include <EEPROM.h> 
 
   #include "BNO08x_AOG.h"
+
+//Used to set CPU speed
+extern "C" uint32_t set_arm_clock(uint32_t frequency); // required prototype
+extern float tempmonGetTemp(void);
+elapsedMillis tempChecker;
   
 //----Teensy 4.1 Ethernet--Start---------------------
   #include <NativeEthernet.h>
@@ -313,7 +318,11 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
  
   void setup()
   {    
-    
+    delay(500);                         //Small delay so serial can monitor start up
+    set_arm_clock(150000000);           //Set CPU speed to 150mhz
+    Serial.print("CPU speed set to: ");
+    Serial.println(F_CPU_ACTUAL);
+
    //keep pulled high and drag low to activate, noise free safe   
     pinMode(WORKSW_PIN, INPUT_PULLUP); 
     pinMode(STEERSW_PIN, INPUT_PULLUP); 
@@ -486,7 +495,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
 //----Teensy 4.1 CANBus--End---------------------
 
-  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 02.07.2022");
+  Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.12.2022");
   Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
   Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 
@@ -993,13 +1002,13 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
     else if (udpData[3] == 0xFC)  //252
     {      
       //PID values
-      steerSettings.Kp = ((float)udpData[5]);   // read Kp from AgOpenGPS
+      steerSettings.Kp = udpData[5];   // read Kp from AgOpenGPS
       
       steerSettings.highPWM = udpData[6]; // read high pwm
       
-      steerSettings.lowPWM = (float)udpData[7];   // read lowPWM from AgOpenGPS              
+      steerSettings.lowPWM = udpData[8]; //udpData[7];   // read lowPWM from AgOpenGPS              
   
-      steerSettings.minPWM = udpData[8]; //read the minimum amount of PWM for instant on
+      steerSettings.minPWM = 1; //udpData[8]; //read the minimum amount of PWM for instant on
       
       steerSettings.steerSensorCounts = udpData[9]; //sent as setting displayed in AOG
   

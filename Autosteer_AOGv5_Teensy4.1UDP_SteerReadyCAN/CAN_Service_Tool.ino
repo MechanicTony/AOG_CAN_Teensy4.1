@@ -32,38 +32,52 @@
 //
 //---------------------------------------------------------
 
-void Service_Tool (void) {
+void Service_Tool (void) 
+{
   Serial.println("\r\nAgOpenGPS CANBUS Service Tool Mode:");
   Help();
   
-  while (Service == 1) {
+  while (Service == 1) 
+  {
   
-  if (Serial.available()){    // Read Data From Serail Monitor 
-    byte b = Serial.read();
-    if ( b == '?') Help();          
-    else if ( b == 'X') Service = 0; //Exit Service Mode
-    else if ( b == '0') Claas();
-    else if ( b == '1') Valtra();
-    else if ( b == '2') CNH();
-    else if ( b == '3') Fendt();
-    else if ( b == '4') JCB();
-    else if ( b == '5') FendtOne();
-    else if ( b == '6') Lindner();
-    else if ( b == '7') AgOpenGPS();
-    else if ( b == 'R') ReadCAN();
-    else if ( b == 'S') StopCAN();
+      if (Serial.available())   // Read Data From Serail Monitor 
+      {    
+        byte b = Serial.read();
+        if ( b == '?') Help();          
+        else if ( b == 'X') Service = 0; //Exit Service Mode
+        else if ( b == '0') Claas();
+        else if ( b == '1') Valtra();
+        else if ( b == '2') CNH();
+        else if ( b == '3') Fendt();
+        else if ( b == '4') JCB();
+        else if ( b == '5') FendtOne();
+        else if ( b == '6') Lindner();
+        else if ( b == '7') AgOpenGPS();
+        else if ( b == 'R') ReadCAN();
+        else if ( b == 'S') StopCAN();
 
-    else{
-    Serial.println("No command, send ? for help");
-    Serial.println(" ");
-    delay(50);
+        else
+        {
+          Serial.println("No command, send ? for help");
+          Serial.println(" ");
+          delay(50);
+        }
+
+        while (Serial.available())
+        {
+        Serial.read();                //Clear the serial buffer
+        }
+      }
+
+      if (tempChecker > 10000)
+      {
+          tempChecker = 0;
+          float temp = tempmonGetTemp();
+          Serial.print(temp, 2);
+          Serial.println(" degC CPU Temp");
+      }
+
   }
-  while (Serial.available()){
-  Serial.read();                //Clear the serial buffer
- }
-}
-
- }
 }
 
 //**************************************************************************************
@@ -87,7 +101,9 @@ void Help(){
 void Claas(){
   EEPROM.update(70,0); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set Claas, Power Off Teensy");
+  Serial.println("Brand Set Claas, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 
@@ -95,7 +111,9 @@ void Claas(){
 void Valtra(){
   EEPROM.update(70,1); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set Valtra / Massey, Power Off Teensy");
+  Serial.println("Brand Set Valtra, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 
@@ -103,7 +121,9 @@ void Valtra(){
 void CNH(){
   EEPROM.update(70,2); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set CaseIH / New Holland, Power Off Teensy");
+  Serial.println("Brand Set CaseIH / New Holland, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 
@@ -111,35 +131,45 @@ void CNH(){
 void Fendt(){
   EEPROM.update(70,3); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set Fendt SCR/S4/Gen6, Power Off Teensy");
+  Serial.println("Brand Set Fendt SCR/S4/Gen6, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 //**************************************************************************************
 void JCB(){
   EEPROM.update(70,4); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set JCB, Power Off Teensy");
+  Serial.println("Brand Set JCB, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 //**************************************************************************************
 void FendtOne(){
   EEPROM.update(70,5); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set FendtOne, Power Off Teensy");
+  Serial.println("Brand Set FendtOne, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 //**************************************************************************************
 void Lindner(){
   EEPROM.update(70,6); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set Lindner, Power Off Teensy");
+  Serial.println("Brand Set Lindner, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 //**************************************************************************************
 void AgOpenGPS(){
   EEPROM.update(70,7); 
   Brand = EEPROM.read(70);
-  Serial.println("Brand Set AgOpenGPS, Power Off Teensy");
+  Serial.println("Brand Set AgOpenGPS, Restarting Teensy");
+  delay(1000);
+  SCB_AIRCR = 0x05FA0004; //Teensy Reset
   Serial.println(" ");
 }
 //**************************************************************************************
