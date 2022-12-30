@@ -490,11 +490,11 @@ if (K_Bus.read(KBusReceiveData)) {
   //Put code here to sort a message out from K-Bus if needed 
   
   if (Brand == 3){
-    if (KBusReceiveData.buf[0]==0x15 and KBusReceiveData.buf[2]==0x06 and KBusReceiveData.buf[3]==0xCA){
+    if (KBusReceiveData.buf[0]==0x15 && KBusReceiveData.buf[2]==0x06 && KBusReceiveData.buf[3]==0xCA){
        
-      if(KBusReceiveData.buf[1]==0x8A and KBusReceiveData.buf[4]==0x80) steeringValveReady = 80;      // Fendt Auto Steer Active Pressed So CAN Not Ready
+      if(KBusReceiveData.buf[1]==0x8A && KBusReceiveData.buf[4]==0x80) steeringValveReady = 80;      // Fendt Auto Steer Active Pressed So CAN Not Ready
       
-      if (KBusReceiveData.buf[1]==0x88 and KBusReceiveData.buf[4]==0x80){     // Fendt Auto Steer Go   
+      if (KBusReceiveData.buf[1]==0x88 && KBusReceiveData.buf[4]==0x80){     // Fendt Auto Steer Go   
       Time = millis();
       digitalWrite(engageLED,HIGH); 
       engageCAN = 1;
@@ -532,72 +532,88 @@ if (ShowCANData == 1){
  }
 }
 
-
 //Fendt K-Bus Buttons
 
 void pressGo()
-{                                     
- CAN_message_t buttonData;
- buttonData.id = 0X613;
- buttonData.len = 8;
-for ( uint8_t i = 0; i <= sizeof(goPress); i++ ) buttonData.buf[i] = goPress[i];
-   K_Bus.write(buttonData);
-   goDown = true;
-   Serial.println("Press Go");
+{
+    CAN_message_t buttonData;
+    buttonData.id = 0X613;
+    buttonData.len = 8;
+    for (uint8_t i = 0; i < sizeof(goPress); i++)
+    {
+        buttonData.buf[i] = goPress[i];
+    }
+    K_Bus.write(buttonData);
+    goDown = true;
+    Serial.println("Press Go");
 }
-
 
 void liftGo()
 {
-  CAN_message_t buttonData;
- buttonData.id = 0X613;
- buttonData.len = 8;
-for ( uint8_t i = 0; i <= sizeof(goLift); i++ ) buttonData.buf[i] = goLift[i];
-   K_Bus.write(buttonData);
-   goDown = false;
+     CAN_message_t buttonData;
+     buttonData.id = 0X613;
+     buttonData.len = 8;
+     for (uint8_t i = 0; i < sizeof(goLift); i++)
+     {
+         buttonData.buf[i] = goLift[i];
+     }
+     K_Bus.write(buttonData);
+     goDown = false;
 }
 
 void pressEnd() {
-  CAN_message_t buttonData;
- buttonData.id = 0X613;
- buttonData.len = 8;
-for ( uint8_t i = 0; i <= sizeof(endPress); i++ ) buttonData.buf[i] = endPress[i];
-   K_Bus.write(buttonData);
-   endDown = true;
-   Serial.println("Press End");
+     CAN_message_t buttonData;
+     buttonData.id = 0X613;
+     buttonData.len = 8;
+     for (uint8_t i = 0; i < sizeof(endPress); i++)
+     {
+         buttonData.buf[i] = endPress[i];
+     }
+     K_Bus.write(buttonData);
+     endDown = true;
+     Serial.println("Press End");
 }
 
 void liftEnd(){
-CAN_message_t buttonData;
- buttonData.id = 0X613;
- buttonData.len = 8;
-for ( uint8_t i = 0; i <= sizeof(endLift); i++ ) buttonData.buf[i] = endLift[i];
-   K_Bus.write(buttonData);
-   endDown = false;
+     CAN_message_t buttonData;
+     buttonData.id = 0X613;
+     buttonData.len = 8;
+     for (uint8_t i = 0; i < sizeof(endLift); i++)
+     {
+         buttonData.buf[i] = endLift[i];
+     }
+     K_Bus.write(buttonData);
+     endDown = false;
 }
 
 // CLAAS CSM buttons Start
 void pressCSM1()
 {                                     
- CAN_message_t buttonData;
- buttonData.id = 0x14204146;
- buttonData.flags.extended = true;
- buttonData.len = 8;
-for ( uint8_t i = 0; i <= sizeof(csm1Press); i++ ) buttonData.buf[i] = csm1Press[i];
-   K_Bus.write(buttonData);
-   goDown = true;
-   Serial.println("Press CSM1");
+     CAN_message_t buttonData;
+     buttonData.id = 0x14204146;
+     buttonData.flags.extended = true;
+     buttonData.len = 8;
+     for (uint8_t i = 0; i < sizeof(csm1Press); i++)
+     {
+         buttonData.buf[i] = csm1Press[i];
+     }
+     K_Bus.write(buttonData);
+     goDown = true;
+     Serial.println("Press CSM1");
 }
 
 void pressCSM2() {
-  CAN_message_t buttonData;
- buttonData.id = 0x14204146;
- buttonData.flags.extended = true;
- buttonData.len = 8;
-for ( uint8_t i = 0; i <= sizeof(csm2Press); i++ ) buttonData.buf[i] = csm2Press[i];
-   K_Bus.write(buttonData);
-   endDown = true;
-   Serial.println("Press CSM2");
+     CAN_message_t buttonData;
+     buttonData.id = 0x14204146;
+     buttonData.flags.extended = true;
+     buttonData.len = 8;
+     for (uint8_t i = 0; i < sizeof(csm2Press); i++)
+     {
+         buttonData.buf[i] = csm2Press[i];
+     }
+    K_Bus.write(buttonData);
+    endDown = true;
+    Serial.println("Press CSM2");
 }
 
 //AgOpen CAN module

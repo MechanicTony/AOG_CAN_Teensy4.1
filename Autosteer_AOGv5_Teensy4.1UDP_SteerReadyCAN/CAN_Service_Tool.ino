@@ -55,6 +55,10 @@ void Service_Tool (void)
         else if ( b == '7') AgOpenGPS();
         else if ( b == 'R') ReadCAN();
         else if ( b == 'S') StopCAN();
+        else if ( b == 'f') gpsModeOne();
+        else if ( b == 'F') gpsModeTwo();
+        else if ( b == 'p') gpsModeThree();
+        else if ( b == 'P') gpsModeFour();
 
         else
         {
@@ -94,6 +98,8 @@ void Help(){
   Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
+  Serial.println("Forwarding Mode: f = 115200, F = 460800");
+  Serial.println("Panda Mode: p = 115200, P = 460800");
   Serial.println(" ");
 }
 
@@ -184,4 +190,35 @@ ShowCANData = 0;
   Serial.println("CAN Data OFF, Send X To Exit Service Tool");
   Serial.println(" ");
 }
- 
+//**************************************************************************************
+void gpsModeOne() {
+    EEPROM.update(72, 1);
+    Serial.println("GPS Forwarding @ 115200, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void gpsModeTwo() {
+    EEPROM.update(72, 2);
+    Serial.println("GPS Forwarding @ 460800, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void gpsModeThree() {
+    EEPROM.update(72, 3);
+    Serial.println("GPS Panda @ 115200, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void gpsModeFour() {
+    EEPROM.update(72, 4);
+    Serial.println("GPS Panda @ 460800, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}

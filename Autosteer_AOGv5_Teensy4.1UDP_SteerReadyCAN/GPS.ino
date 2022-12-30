@@ -65,11 +65,17 @@ void Forward_Ntrip()
 
 void clearBufferArray()
 {
+  /*
   for (int i=0; i<count; i++)
   {
     nmeaBuffer[i]=NULL;
     stringComplete = false;
   }
+  */
+  
+  strcpy(nmeaBuffer, "");
+  stringComplete = false;
+
 }
      
    
