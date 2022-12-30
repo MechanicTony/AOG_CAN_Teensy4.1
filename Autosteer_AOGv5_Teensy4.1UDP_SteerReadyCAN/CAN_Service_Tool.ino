@@ -2,6 +2,10 @@
 // Danfoss PVED-CL Service Tool for use with AgOpenGPS
 // The Danfoss PVED-CL parts are not in here yet, but will be copied over soon
 
+//Ryan Claas addons
+// 30-12-2022  Added PVED-CL parameter 64007 change code to CAN Service Tool page. Use to change CLAAS PVED-CL parameter 64007
+//             Add CLAAS pre Mother reg tractor CSM button messages on main Autosteer_AOG_Teensy4.1 page line 156-160 Comment out lines not required to select pre MR or MR/Stage5
+
 //----------------------------------------------------------
 //Notes from Ryan (When Changing Claas Parameter 64007) 
 //
@@ -55,6 +59,7 @@ void Service_Tool (void)
         else if ( b == '7') AgOpenGPS();
         else if ( b == 'R') ReadCAN();
         else if ( b == 'S') StopCAN();
+        else if (b == 'Z') PVED64007();
         else if ( b == 'f') gpsModeOne();
         else if ( b == 'F') gpsModeTwo();
         else if ( b == 'p') gpsModeThree();
@@ -98,6 +103,7 @@ void Help(){
   Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
+  Serial.println("Z = Change PVED parameter 64007 to 30");
   Serial.println("Forwarding Mode: f = 115200, F = 460800");
   Serial.println("Panda Mode: p = 115200, P = 460800");
   Serial.println(" ");
@@ -221,4 +227,41 @@ void gpsModeFour() {
     delay(1000);
     SCB_AIRCR = 0x05FA0004; //Teensy Reset
     Serial.println(" ");
+}
+//**************************************************************************************
+void PVED64007() {
+    // Change parameter 64007 to 30(Dec) 1E(Hex)
+    CAN_message_t msgP;
+    msgP.id = 0x98EF13FD;
+    msgP.flags.extended = true;
+    msgP.len = 8;
+    msgP.buf[0] = 0x0F;
+    msgP.buf[1] = 0xA2;
+    msgP.buf[2] = 0x07;
+    msgP.buf[3] = 0xFA;
+    msgP.buf[4] = 0x1E;
+    msgP.buf[5] = 0x00;
+    msgP.buf[6] = 0x00;
+    msgP.buf[7] = 0x00;
+    V_Bus.write(msgP);
+    Serial.println("sent parameter change request");
+    delay(100);
+
+    // Commit parameters to PVED-CL  
+    CAN_message_t msgC;
+    msgC.id = 0x98EF13FD;
+    msgC.flags.extended = true;
+    msgC.len = 8;
+    msgC.buf[0] = 0x0F;
+    msgC.buf[1] = 0xA6;
+    msgC.buf[2] = 0x5A;
+    msgC.buf[3] = 0x00;
+    msgC.buf[4] = 0x00;
+    msgC.buf[5] = 0x00;
+    msgC.buf[6] = 0x00;
+    msgC.buf[7] = 0x00;
+    V_Bus.write(msgC);
+
+    delay(1000);
+    Serial.println("parameters commited, reboot PVED");
 }
