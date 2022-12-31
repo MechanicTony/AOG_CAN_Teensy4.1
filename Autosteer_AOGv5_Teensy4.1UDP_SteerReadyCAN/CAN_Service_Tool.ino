@@ -231,6 +231,7 @@ void gpsModeFour() {
 //**************************************************************************************
 void PVED64007() {
     static bool configPVED = true;
+    static bool showMessage = false;
     static int ReadParameters = 0;
     int16_t S16Value = 9999;
     uint16_t U16Value = 9999;
@@ -243,7 +244,10 @@ void PVED64007() {
 
     Serial.println("AgOpenGPS Danfoss PVED Config Mode:");
     Serial.println("Send X to exit and reset Teensy");
-    Serial.println("Send W to write settings to PVED");
+    Serial.println("Send S to print CAN message");
+    Serial.println("Send s to stop printing message");
+    Serial.println("Send R to read PVED parameters");
+    Serial.println("Send W to change parameter 64007 to 30(Dec) 1E(Hex)");
     Serial.println("Send C to commit settings to PVED\r\n");
 
     Serial.println("Please power ON PVED valve...");
@@ -265,9 +269,11 @@ void PVED64007() {
                 delay(1000);
                 SCB_AIRCR = 0x05FA0004; //Teensy Reset
             }
-            else if (b == 'W') WriteParameters();  //Write Basic Parameters
-            else if (b == 'C') Commit();           //Commit / Save Data
-            else if (b == 'R') ReadParameters = 1; //Get Basic Parameters
+            else if (b == 'W') WriteParameters();   //Write Basic Parameters
+            else if (b == 'C') Commit();            //Commit / Save Data
+            else if (b == 'R') ReadParameters = 1;  //Get Basic Parameters
+            else if (b == 'S') showMessage = 1;     //Get Basic Parameters
+            else if (b == 's') showMessage = 0;     //Get Basic Parameters
             else
             {
                 Serial.println("No command, retry");
@@ -283,6 +289,20 @@ void PVED64007() {
 
         if (V_Bus.read(ConfigData))
         {
+            if (showMessage == 1) 
+            {
+                Serial.print(", V-Bus");
+                Serial.print(", MB: "); Serial.print(ConfigData.mb);
+                Serial.print(", ID: 0x"); Serial.print(ConfigData.id, HEX);
+                Serial.print(", EXT: "); Serial.print(ConfigData.flags.extended);
+                Serial.print(", LEN: "); Serial.print(ConfigData.len);
+                Serial.print(", DATA: ");
+                for (uint8_t i = 0; i < 8; i++) {
+                    Serial.print(ConfigData.buf[i]); Serial.print(", ");
+                }
+                Serial.println("");
+            }
+
             //Valve current mode
             if ((ConfigData.buf[0] == 0x0F) && (ConfigData.buf[1] == 0xAA)) 
             {
