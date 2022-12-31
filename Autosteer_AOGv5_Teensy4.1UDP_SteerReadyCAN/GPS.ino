@@ -17,16 +17,22 @@ void GPS_setup()
   else GPS.begin(460800);
   GPS.addMemoryForRead(rxbuffer, 512);
   GPS.addMemoryForWrite(txbuffer, 512);
+
+  // the dash means wildcard
+  parser.setErrorHandler(errorHandler);
+  parser.addHandler("G-GGA", GGA_Handler);
+  parser.addHandler("G-VTG", VTG_Handler);
+
 }
 
 //**************************************************************
 
 void Read_IMU()
 {
-
-    //-----IMU Timed Loop-----
-
-    IMU_currentTime = millis();
+  //GPS forwaring mode, send the IMU message if needed
+  if (gpsMode == 1 || gpsMode == 2)
+  {
+        IMU_currentTime = millis();
 
     if (isTriggered && (IMU_currentTime - IMU_lastTime) >= IMU_DELAY_TIME)
     {
@@ -61,8 +67,9 @@ void Read_IMU()
         else if (useBNO08x)
         {
             //the heading x10
-            data[5] = (uint8_t)bno08xHeading10x;
-            data[6] = bno08xHeading10x >> 8;
+            temp = (int16_t)yaw;
+            data[5] = (uint8_t)yaw;
+            data[6] = temp >> 8;
 
             //the roll x10
             temp = (int16_t)roll;
@@ -80,18 +87,14 @@ void Read_IMU()
 
         data[dataSize - 1] = CK_A;
 
-        if (useCMPS || useBNO08x)
-        {
-            //off to AOG
-            Udp.beginPacket(ipDestination, 9999);
-            Udp.write(data, dataSize);
-            Udp.endPacket();
-        }
+        //off to AOG
+        Udp.beginPacket(ipDestination, 9999);
+        Udp.write(data, dataSize);
+        Udp.endPacket();
     }
-    //-----End IMU Timed Loop-----
+  }
 
-    //Gyro Timmed loop
-
+  //Gyro Timmed loop
   IMU_currentTime = millis();
 
   if ((IMU_currentTime - lastGyroTime) >= GYRO_LOOP_TIME)
@@ -101,24 +104,55 @@ void Read_IMU()
       if(useBNO08x)
       {
         if (bno08x.dataAvailable() == true)
-       {
-            bno08xHeading = (bno08x.getYaw()) * CONST_180_DIVIDED_BY_PI; // Convert yaw / heading to degrees
-            bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
+        {
+            float dqx, dqy, dqz, dqw, dacr;
+            uint8_t dac;
 
-            if (bno08xHeading < 0 && bno08xHeading >= -180) //Scale BNO085 yaw from [-180;180] to [0;360]
+            //get quaternion
+            bno08x.getQuat(dqx, dqy, dqz, dqw, dacr, dac);
+
+            float norm = sqrt(dqw * dqw + dqx * dqx + dqy * dqy + dqz * dqz);
+            dqw = dqw / norm;
+            dqx = dqx / norm;
+            dqy = dqy / norm;
+            dqz = dqz / norm;
+
+            float ysqr = dqy * dqy;
+
+            // yaw (z-axis rotation)
+            float t3 = +2.0 * (dqw * dqz + dqx * dqy);
+            float t4 = +1.0 - 2.0 * (ysqr + dqz * dqz);
+            yaw = atan2(t3, t4);
+
+            // Convert yaw to degrees x10
+            yaw = (int16_t)((yaw * -RAD_TO_DEG_X_10));
+            if (yaw < 0) yaw += 3600;
+
+            // pitch (y-axis rotation)
+            float t2 = +2.0 * (dqw * dqy - dqz * dqx);
+            t2 = t2 > 1.0 ? 1.0 : t2;
+            t2 = t2 < -1.0 ? -1.0 : t2;
+            //            pitch = asin(t2) * RAD_TO_DEG_X_10;
+
+                        // roll (x-axis rotation)
+            float t0 = +2.0 * (dqw * dqx + dqy * dqz);
+            float t1 = +1.0 - 2.0 * (dqx * dqx + ysqr);
+            //            roll = atan2(t0, t1) * RAD_TO_DEG_X_10;
+
+            if (swapRollPitch)
             {
-                bno08xHeading = bno08xHeading + 360;
+                roll = asin(t2) * RAD_TO_DEG_X_10;
+                pitch = atan2(t0, t1) * RAD_TO_DEG_X_10;
             }
-
-            //roll = (bno08x.getRoll()) * CONST_180_DIVIDED_BY_PI;
-            roll = (bno08x.getPitch()) * CONST_180_DIVIDED_BY_PI;
-
-            roll = roll * 10;
-            bno08xHeading10x = (int16_t)(bno08xHeading * 10);
+            else
+            {
+                pitch = asin(t2) * RAD_TO_DEG_X_10;
+                roll = atan2(t0, t1) * RAD_TO_DEG_X_10;
+            }
         }
       }     
     }
-//-----End Gyro Timed Loop-----
+  //-----End Gyro Timed Loop-----
 
 }
 
@@ -126,9 +160,10 @@ void Read_IMU()
 
 void Panda_GPS()
 {
-
-
-
+    while (GPS.available())
+    {
+        parser << GPS.read();
+    }
 }
 
 //**************************************************************
@@ -141,7 +176,7 @@ void Forward_GPS()
     nmeaBuffer[count++] = c;
     if(c == '\n')stringComplete = true;
     if(count == 200 || stringComplete == true)break;
-   } 
+  } 
 
   if(count == 200 || stringComplete == true){ 
     if (stringComplete == true){  

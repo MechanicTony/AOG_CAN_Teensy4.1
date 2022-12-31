@@ -5,7 +5,6 @@
   https://www.sparkfun.com/products/14686
 
   Written by Nathan Seidle @ SparkFun Electronics, December 28th, 2017
-  Edited by Math for AgOpenGPS application
 
   The BNO080 IMU is a powerful triple axis gyro/accel/magnetometer coupled with an ARM processor
   to maintain and complete all the complex calculations for various VR, inertial, step counting,
@@ -19,13 +18,8 @@
   Development environment specifics:
   Arduino IDE 1.8.5
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	SparkFun code, firmware, and software is released under the MIT License.
+	Please see LICENSE.md for further details.
 */
 
 #include "BNO08x_AOG.h"
@@ -36,7 +30,11 @@ boolean BNO080::begin(uint8_t deviceAddress, TwoWire &wirePort, uint8_t intPin)
 {
 	_deviceAddress = deviceAddress; //If provided, store the I2C address from user
 	_i2cPort = &wirePort;			//Grab which port the user wants us to use
-	_int = intPin;					//Get the pin that the user wants to use for interrupts. By default, it's NULL and we'll not use it in dataAvailable() function.
+	_int = intPin;					//Get the pin that the user wants to use for interrupts. By default, it's 255 and we'll not use it in dataAvailable() function.
+	if (_int != 255)
+	{
+		pinMode(_int, INPUT_PULLUP);
+	}
 
 	//We expect caller to begin their I2C port, with the speed of their choice external to the library
 	//But if they forget, we start the hardware here.
@@ -174,13 +172,18 @@ void BNO080::enableDebugging(Stream &debugPort)
 //Returns false if new readings are not available
 bool BNO080::dataAvailable(void)
 {
+	return (getReadings() != 0);
+}
+
+uint16_t BNO080::getReadings(void)
+{
 	//If we have an interrupt pin connection available, check if data is available.
 	//If int pin is not set, then we'll rely on receivePacket() to timeout
 	//See issue 13: https://github.com/sparkfun/SparkFun_BNO080_Arduino_Library/issues/13
 	if (_int != 255)
 	{
 		if (digitalRead(_int) == HIGH)
-			return (false);
+			return 0;
 	}
 
 	if (receivePacket() == true)
@@ -188,43 +191,39 @@ bool BNO080::dataAvailable(void)
 		//Check to see if this packet is a sensor reporting its data to us
 		if (shtpHeader[2] == CHANNEL_REPORTS && shtpData[0] == SHTP_REPORT_BASE_TIMESTAMP)
 		{
-			parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
-			return (true);
+			return parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
 		}
 		else if (shtpHeader[2] == CHANNEL_CONTROL)
 		{
-			parseCommandReport(); //This will update responses to commands, calibrationStatus, etc.
-			return (true);
+			return parseCommandReport(); //This will update responses to commands, calibrationStatus, etc.
 		}
     else if(shtpHeader[2] == CHANNEL_GYRO)
     {
-      parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
-      return (true);
+      return parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
     }
 	}
-	return (false);
+	return 0;
 }
 
-//This function pulls the data from the command response report or get feature response report
+//This function pulls the data from the command response report
 
 //Unit responds with packet that contains the following:
-//                 Command response report         | Get feature respond report
-//shtpHeader[0:3]: First, a 4 byte header          | First, a 4 byte header
-//shtpData[0]:     The Report ID                   | The Report ID
-//shtpData[1]:     Sequence number (See 6.5.18.2)  | Feature report ID
-//shtpData[2]:     Command                         | Feature flags
-//shtpData[3]:     Command Sequence Number         | Change sensitivity [absolute | relative] LSB
-//shtpData[4]:     Response Sequence Number        | Change sensitivity [absolute | relative] MSB
-//shtpData[5 + 0]: R0                              | Report Interval LSB
-//shtpData[5 + 1]: R1                              | Report Interval
-//shtpData[5 + 2]: R2                              | Report Interval
-//shtpData[5 + 3]: R3                              | Report Interval MSB
-//shtpData[5 + 4]: R4                              | Batch Interval LSB
-//shtpData[5 + 5]: R5                              | Batch Interval
-//shtpData[5 + 6]: R6                              | Batch Interval
-//shtpData[5 + 7]: R7                              | Batch Interval MSB
+//shtpHeader[0:3]: First, a 4 byte header
+//shtpData[0]: The Report ID
+//shtpData[1]: Sequence number (See 6.5.18.2)
+//shtpData[2]: Command
+//shtpData[3]: Command Sequence Number
+//shtpData[4]: Response Sequence Number
+//shtpData[5 + 0]: R0
+//shtpData[5 + 1]: R1
+//shtpData[5 + 2]: R2
+//shtpData[5 + 3]: R3
+//shtpData[5 + 4]: R4
+//shtpData[5 + 5]: R5
+//shtpData[5 + 6]: R6
+//shtpData[5 + 7]: R7
 //shtpData[5 + 8]: R8
-void BNO080::parseCommandReport(void)
+uint16_t BNO080::parseCommandReport(void)
 {
 	if (shtpData[0] == SHTP_REPORT_COMMAND_RESPONSE)
 	{
@@ -234,20 +233,9 @@ void BNO080::parseCommandReport(void)
 		if (command == COMMAND_ME_CALIBRATE)
 		{
 			calibrationStatus = shtpData[5 + 0]; //R0 - Status (0 = success, non-zero = fail)
-			//Add by Math : 4 followings lines for printMECalibrationRespond() function
-			calibrationAccEnable = shtpData[5 + 1]; // R1 - Accel Cal Enable (1 – enabled, 0 – disabled)
-			calibrationGyroEnable = shtpData[5 + 2]; // R2 - Gyro Cal Enable (1 – enabled, 0 – disabled)
-			calibrationMagnEnable = shtpData[5 + 3]; // R3 - Mag Cal Enable (1 – enabled, 0 – disabled)
-			calibrationPlanEnable = shtpData[5 + 4]; // R4 - Planar Accel Cal Enable (1 – enabled, 0 – disabled)
 		}
+		return shtpData[0];
 	}
-	//Add by Math: retrieve of the BNO08x report Get Feature Response
-	else if (shtpData[0] == SHTP_REPORT_GET_FEATURE_RESPONSE)
-	{
-		featureReportId = shtpData[1];
-		reportInterval = (long)shtpData[8] << 24 | (long)shtpData[7] << 16 | (uint16_t)shtpData[6] << 8 | shtpData[5];
-	}
-	//Add by Math: end
 	else
 	{
 		//This sensor report ID is unhandled.
@@ -255,6 +243,7 @@ void BNO080::parseCommandReport(void)
 	}
 
 	//TODO additional feature reports may be strung together. Parse them all.
+	return 0;
 }
 
 //This function pulls the data from the input report
@@ -272,7 +261,7 @@ void BNO080::parseCommandReport(void)
 //shtpData[8:9]: k/accel z/gyro z/etc
 //shtpData[10:11]: real/gyro temp/etc
 //shtpData[12:13]: Accuracy estimate
-void BNO080::parseInputReport(void)
+uint16_t BNO080::parseInputReport(void)
 {
 	//Calculate the number of data bytes in this packet
 	int16_t dataLength = ((uint16_t)shtpHeader[1] << 8 | shtpHeader[0]);
@@ -293,7 +282,7 @@ void BNO080::parseInputReport(void)
 		rawFastGyroY = (uint16_t)shtpData[11] << 8 | shtpData[10];
 		rawFastGyroZ = (uint16_t)shtpData[13] << 8 | shtpData[12];
 
-		return;
+		return SENSOR_REPORTID_GYRO_INTEGRATED_ROTATION_VECTOR;
 	}
 
 	uint8_t status = shtpData[5 + 2] & 0x03; //Get status bits
@@ -356,6 +345,10 @@ void BNO080::parseInputReport(void)
 		// not game rot vector and not ar/vr stabilized rotation vector
 		rawQuatRadianAccuracy = data5;
 	}
+	else if (shtpData[5] == SENSOR_REPORTID_TAP_DETECTOR)
+	{
+		tapDetector = shtpData[5 + 4]; //Byte 4 only
+	}
 	else if (shtpData[5] == SENSOR_REPORTID_STEP_COUNTER)
 	{
 		stepCount = data3; //Bytes 8/9
@@ -412,9 +405,11 @@ void BNO080::parseInputReport(void)
 	{
 		//This sensor report ID is unhandled.
 		//See reference manual to add additional feature reports as needed
+		return 0;
 	}
 
 	//TODO additional feature reports may be strung together. Parse them all.
+	return shtpData[5];
 }
 
 // Quaternion to Euler conversion
@@ -458,8 +453,6 @@ float BNO080::getPitch()
 	dqy = dqy/norm;
 	dqz = dqz/norm;
 
-	float ysqr = dqy * dqy;
-
 	// pitch (y-axis rotation)
 	float t2 = +2.0 * (dqw * dqy - dqz * dqx);
 	t2 = t2 > 1.0 ? 1.0 : t2;
@@ -493,10 +486,34 @@ float BNO080::getYaw()
 	return (yaw);
 }
 
+//Gets the full quaternion
+//i,j,k,real output floats
+void BNO080::getQuat(float &i, float &j, float &k, float &real, float &radAccuracy, uint8_t &accuracy)
+{
+	i = qToFloat(rawQuatI, rotationVector_Q1);
+	j = qToFloat(rawQuatJ, rotationVector_Q1);
+	k = qToFloat(rawQuatK, rotationVector_Q1);
+	real = qToFloat(rawQuatReal, rotationVector_Q1);
+	radAccuracy = qToFloat(rawQuatRadianAccuracy, rotationVector_Q1);
+	accuracy = quatAccuracy;
+}
+
 //Return the rotation vector quaternion I
 float BNO080::getQuatI()
 {
 	float quat = qToFloat(rawQuatI, rotationVector_Q1);
+	if (_printDebug == true)
+	{
+		if ((quat < -1.0) || (quat > 1.0))
+		{
+			_debugPort->print(F("getQuatI: quat: ")); // Debug the occasional non-unitary Quat
+			_debugPort->print(quat, 2);
+			_debugPort->print(F(" rawQuatI: "));
+			_debugPort->print(rawQuatI);
+			_debugPort->print(F(" rotationVector_Q1: "));
+			_debugPort->println(rotationVector_Q1);
+		}
+	}
 	return (quat);
 }
 
@@ -504,6 +521,18 @@ float BNO080::getQuatI()
 float BNO080::getQuatJ()
 {
 	float quat = qToFloat(rawQuatJ, rotationVector_Q1);
+	if (_printDebug == true)
+	{
+		if ((quat < -1.0) || (quat > 1.0)) // Debug the occasional non-unitary Quat
+		{
+			_debugPort->print(F("getQuatJ: quat: "));
+			_debugPort->print(quat, 2);
+			_debugPort->print(F(" rawQuatJ: "));
+			_debugPort->print(rawQuatJ);
+			_debugPort->print(F(" rotationVector_Q1: "));
+			_debugPort->println(rotationVector_Q1);
+		}
+	}
 	return (quat);
 }
 
@@ -511,6 +540,18 @@ float BNO080::getQuatJ()
 float BNO080::getQuatK()
 {
 	float quat = qToFloat(rawQuatK, rotationVector_Q1);
+	if (_printDebug == true)
+	{
+		if ((quat < -1.0) || (quat > 1.0)) // Debug the occasional non-unitary Quat
+		{
+			_debugPort->print(F("getQuatK: quat: "));
+			_debugPort->print(quat, 2);
+			_debugPort->print(F(" rawQuatK: "));
+			_debugPort->print(rawQuatK);
+			_debugPort->print(F(" rotationVector_Q1: "));
+			_debugPort->println(rotationVector_Q1);
+		}
+	}
 	return (quat);
 }
 
@@ -532,6 +573,16 @@ float BNO080::getQuatRadianAccuracy()
 uint8_t BNO080::getQuatAccuracy()
 {
 	return (quatAccuracy);
+}
+
+//Gets the full acceleration
+//x,y,z output floats
+void BNO080::getAccel(float &x, float &y, float &z, uint8_t &accuracy)
+{
+	x = qToFloat(rawAccelX, accelerometer_Q1);
+	y = qToFloat(rawAccelY, accelerometer_Q1);
+	z = qToFloat(rawAccelZ, accelerometer_Q1);
+	accuracy = accelAccuracy;
 }
 
 //Return the acceleration component
@@ -563,6 +614,16 @@ uint8_t BNO080::getAccelAccuracy()
 
 // linear acceleration, i.e. minus gravity
 
+//Gets the full lin acceleration
+//x,y,z output floats
+void BNO080::getLinAccel(float &x, float &y, float &z, uint8_t &accuracy)
+{
+	x = qToFloat(rawLinAccelX, linear_accelerometer_Q1);
+	y = qToFloat(rawLinAccelY, linear_accelerometer_Q1);
+	z = qToFloat(rawLinAccelZ, linear_accelerometer_Q1);
+	accuracy = accelLinAccuracy;
+}
+
 //Return the acceleration component
 float BNO080::getLinAccelX()
 {
@@ -588,6 +649,16 @@ float BNO080::getLinAccelZ()
 uint8_t BNO080::getLinAccelAccuracy()
 {
 	return (accelLinAccuracy);
+}
+
+//Gets the full gyro vector
+//x,y,z output floats
+void BNO080::getGyro(float &x, float &y, float &z, uint8_t &accuracy)
+{
+	x = qToFloat(rawGyroX, gyro_Q1);
+	y = qToFloat(rawGyroY, gyro_Q1);
+	z = qToFloat(rawGyroZ, gyro_Q1);
+	accuracy = gyroAccuracy;
 }
 
 //Return the gyro component
@@ -617,6 +688,16 @@ uint8_t BNO080::getGyroAccuracy()
 	return (gyroAccuracy);
 }
 
+//Gets the full mag vector
+//x,y,z output floats
+void BNO080::getMag(float &x, float &y, float &z, uint8_t &accuracy)
+{
+	x = qToFloat(rawMagX, magnetometer_Q1);
+	y = qToFloat(rawMagY, magnetometer_Q1);
+	z = qToFloat(rawMagZ, magnetometer_Q1);
+	accuracy = magAccuracy;
+}
+
 //Return the magnetometer component
 float BNO080::getMagX()
 {
@@ -644,6 +725,15 @@ uint8_t BNO080::getMagAccuracy()
 	return (magAccuracy);
 }
 
+//Gets the full high rate gyro vector
+//x,y,z output floats
+void BNO080::getFastGyro(float &x, float &y, float &z)
+{
+	x = qToFloat(rawFastGyroX, angular_velocity_Q1);
+	y = qToFloat(rawFastGyroY, angular_velocity_Q1);
+	z = qToFloat(rawFastGyroZ, angular_velocity_Q1);
+}
+
 // Return the high refresh rate gyro component
 float BNO080::getFastGyroX()
 {
@@ -663,6 +753,14 @@ float BNO080::getFastGyroZ()
 {
 	float gyro = qToFloat(rawFastGyroZ, angular_velocity_Q1);
 	return (gyro);
+}
+
+//Return the tap detector
+uint8_t BNO080::getTapDetector()
+{
+	uint8_t previousTapDetector = tapDetector;
+	tapDetector = 0; //Reset so user code sees exactly one tap
+	return (previousTapDetector);
 }
 
 //Return the step count
@@ -845,7 +943,7 @@ bool BNO080::readFRSdata(uint16_t recordID, uint8_t startLocation, uint8_t words
 			//We have the packet, inspect it for the right contents
 			//See page 40. Report ID should be 0xF3 and the FRS types should match the thing we requested
 			if (shtpData[0] == SHTP_REPORT_FRS_READ_RESPONSE)
-				if (((uint16_t)shtpData[13] << 8 | shtpData[12]) == recordID)
+				if (((((uint16_t)shtpData[13]) << 8) | shtpData[12]) == recordID)
 					break; //This packet is one we are looking for
 		}
 
@@ -893,10 +991,56 @@ void BNO080::softReset(void)
 	//Read all incoming data and flush it
 	delay(50);
 	while (receivePacket() == true)
-		;
+		; //delay(1);
 	delay(50);
 	while (receivePacket() == true)
-		;
+		; //delay(1);
+}
+
+//Set the operating mode to "On"
+//(This one is for @jerabaul29)
+void BNO080::modeOn(void)
+{
+	shtpData[0] = 2; //On
+
+	//Attempt to start communication with sensor
+	sendPacket(CHANNEL_EXECUTABLE, 1); //Transmit packet on channel 1, 1 byte
+
+	//Read all incoming data and flush it
+	delay(50);
+	while (receivePacket() == true)
+		; //delay(1);
+	delay(50);
+	while (receivePacket() == true)
+		; //delay(1);
+}
+
+//Set the operating mode to "Sleep"
+//(This one is for @jerabaul29)
+void BNO080::modeSleep(void)
+{
+	shtpData[0] = 3; //Sleep
+
+	//Attempt to start communication with sensor
+	sendPacket(CHANNEL_EXECUTABLE, 1); //Transmit packet on channel 1, 1 byte
+
+	//Read all incoming data and flush it
+	delay(50);
+	while (receivePacket() == true)
+		; //delay(1);
+	delay(50);
+	while (receivePacket() == true)
+		; //delay(1);
+}
+
+// Indicates if we've received a Reset Complete packet. Once it's been read, 
+// the state will reset to false until another Reset Complete packet is found. 
+bool BNO080::hasReset() {
+	if (_hasReset) {
+		_hasReset = false;
+		return true;
+	}
+	return false; 
 }
 
 //Get the reason for the last reset
@@ -982,6 +1126,12 @@ void BNO080::enableMagnetometer(uint16_t timeBetweenReports)
 void BNO080::enableGyroIntegratedRotationVector(uint16_t timeBetweenReports)
 {
 	setFeatureCommand(SENSOR_REPORTID_GYRO_INTEGRATED_ROTATION_VECTOR, timeBetweenReports);
+}
+
+//Sends the packet to enable the tap detector
+void BNO080::enableTapDetector(uint16_t timeBetweenReports)
+{
+	setFeatureCommand(SENSOR_REPORTID_TAP_DETECTOR, timeBetweenReports);
 }
 
 //Sends the packet to enable the step counter
@@ -1276,7 +1426,7 @@ boolean BNO080::receivePacket(void)
 		shtpHeader[3] = sequenceNumber;
 
 		//Calculate the number of data bytes in this packet
-		uint16_t dataLength = ((uint16_t)packetMSB << 8 | packetLSB);
+		uint16_t dataLength = (((uint16_t)packetMSB) << 8) | ((uint16_t)packetLSB);
 		dataLength &= ~(1 << 15); //Clear the MSbit.
 		//This bit indicates if this package is a continuation of the last. Ignore it for now.
 		//TODO catch this as an error and exit
@@ -1303,7 +1453,7 @@ boolean BNO080::receivePacket(void)
 	}
 	else //Do I2C
 	{
-		_i2cPort->requestFrom((uint8_t)_deviceAddress, (uint8_t)4); //Ask for four bytes to find out how much data we need to read
+		_i2cPort->requestFrom((uint8_t)_deviceAddress, (size_t)4); //Ask for four bytes to find out how much data we need to read
 		if (waitForI2C() == false)
 			return (false); //Error
 
@@ -1320,10 +1470,17 @@ boolean BNO080::receivePacket(void)
 		shtpHeader[3] = sequenceNumber;
 
 		//Calculate the number of data bytes in this packet
-		int16_t dataLength = ((uint16_t)packetMSB << 8 | packetLSB);
+		uint16_t dataLength = (((uint16_t)packetMSB) << 8) | ((uint16_t)packetLSB);
 		dataLength &= ~(1 << 15); //Clear the MSbit.
 		//This bit indicates if this package is a continuation of the last. Ignore it for now.
 		//TODO catch this as an error and exit
+
+		// if (_printDebug == true)
+		// {
+		// 	_debugPort->print(F("receivePacket (I2C): dataLength is: "));
+		// 	_debugPort->println(dataLength);
+		// }
+
 		if (dataLength == 0)
 		{
 			//Packet is empty
@@ -1333,6 +1490,15 @@ boolean BNO080::receivePacket(void)
 
 		getData(dataLength);
 	}
+
+	// Quickly check for reset complete packet. No need for a seperate parser.
+	// This function is also called after soft reset, so we need to catch this
+	// packet here otherwise we need to check for the reset packet in multiple
+	// places.
+	if (shtpHeader[2] == CHANNEL_EXECUTABLE && shtpData[0] == EXECUTABLE_RESET_COMPLETE) 
+	{
+		_hasReset = true;
+	} 
 
 	return (true); //We're done!
 }
@@ -1351,7 +1517,7 @@ boolean BNO080::getData(uint16_t bytesRemaining)
 		if (numberOfBytesToRead > (I2C_BUFFER_LENGTH - 4))
 			numberOfBytesToRead = (I2C_BUFFER_LENGTH - 4);
 
-		_i2cPort->requestFrom((uint8_t)_deviceAddress, (uint8_t)(numberOfBytesToRead + 4));
+		_i2cPort->requestFrom((uint8_t)_deviceAddress, (size_t)(numberOfBytesToRead + 4));
 		if (waitForI2C() == false)
 			return (0); //Error
 
@@ -1429,8 +1595,16 @@ boolean BNO080::sendPacket(uint8_t channelNumber, uint8_t dataLength)
 		{
 			_i2cPort->write(shtpData[i]);
 		}
-		if (_i2cPort->endTransmission() != 0)
+
+		uint8_t i2cResult = _i2cPort->endTransmission();
+
+		if (i2cResult != 0)
 		{
+			if (_printDebug == true)
+			{
+				_debugPort->print(F("sendPacket(I2C): endTransmission returned: "));
+				_debugPort->println(i2cResult);
+			}
 			return (false);
 		}
 	}
@@ -1513,104 +1687,4 @@ void BNO080::printHeader(void)
 		}
 		_debugPort->println();
 	}
-}
-
-//Add by Math: printMECalibrationRespond() function to print the Configure ME Calibration Command Respond Report
-//See page 51 of reference manual - ME Calibration Response
-//Byte 5 is parsed during the readPacket and stored in calibrationStatus
-//Byte 6 is parsed during the readPacket and stored in calibrationAccEnable
-//Byte 7 is parsed during the readPacket and stored in calibrationGyroEnable
-//Byte 8 is parsed during the readPacket and stored in calibrationMagnEnable
-//Byte 9 is parsed during the readPacket and stored in calibrationPlanEnable
-boolean BNO080::printMECalibrationRespond()
-{
-	//Wait for calibration response, timeout if no response
-	int counter = 100;
-	while(1)
-	{
-		if(--counter == 0) break;
-        if(dataAvailable() == true)
-        {
-			if (shtpData[0] == SHTP_REPORT_COMMAND_RESPONSE)
-			{
-				//The BNO080 responds with this report to command requests. It's up to use to remember which command we issued.
-				uint8_t command = shtpData[2]; //This is the Command byte of the response
-
-				if (command == COMMAND_ME_CALIBRATE) //The Command Respond Report is a Configure ME Calibration Command Respond Report
-				{
-					Serial.println("Configure ME Calibration Command Respond Report :");
-					Serial.print("-Status : "); Serial.println(calibrationStatus);
-					Serial.print("-Accel Cal Enable : "); Serial.println(calibrationAccEnable);
-					Serial.print("-Gyro Cal Enable : "); Serial.println(calibrationGyroEnable);
-					Serial.print("-Magn Cal Enable : "); Serial.println(calibrationMagnEnable);
-					Serial.print("-Plan Cal Enable : "); Serial.println(calibrationPlanEnable);
-					return (true);
-				}
-			}
-		}
-	}
-	return (false);
-}
-
-//Add by Math: a function to check if a Get Feature Response report is received from BNO08x
-//Return true if the report is available, false if the report is not available
-//Counter requiered to have the time to received the report
-//See page 57 of the reference manual - Get Feature Response
-//Byte 1 is parsed during the readPacket and stored in featureReportId
-//Byte 5, 6, 7 & 8 are parsed during the readPacket and stored in reportInterval
-boolean BNO080::getFeatureResponseAvailable()
-{
-	int counter=1000;
-	while (1)
-	{
-		if(--counter == 0) break;
-		if(dataAvailable() == true)
-		{
-			if (shtpData[0] == SHTP_REPORT_GET_FEATURE_RESPONSE) return (true);
-		}
-	}
-	return (false);
-}
-
-//Add by Math: a function to return the Feature Report ID of the last Get Feature Response report
-//getFeatureResponseAvailable() function shall be execute before to be sure to have received the last Get Feature Response report
-uint8_t BNO080::getFeatureReportId()
-{
-	return(featureReportId);
-}
-
-//Add by Math: a function to return the Report Interval of the last Get Feature Response report
-//getFeatureResponseAvailable() function shall be execute before to be sure to have received the last Get Feature Response report
-long BNO080::getReportInterval()
-{
-	return (reportInterval);
-}
-
-//Add by Math: a function to check if the Get Feature Response report received from BNO08x correspond to what we have enable
-//Return true if:
-//Feature Report ID of the Get Feature Response report correspond to the Feature Report ID passed to the fuction
-//And
-//Report Interval (in ms) of the Get Feature Response report correspond to the Time Interval (in ms) passed to the fuction
-//Else: return false
-//Can be used to check if a Input Report is correctly enable
-//Exemple: If you enable Rotation Vector at 50ms enableRotationVector(50)
-//Call getFeatureResponseAvailable() and then checkReportEnable(0x05,50)
-//checkReportEnable will respond true if the Get Feature Respond report received from BNO08x has a Feature Report ID of 0x05 and a Time Interval of 50ms
-boolean BNO080::checkReportEnable(uint8_t reportID, uint16_t timeBetweenReports)
-{
-	long reportIntervalMicrosecond = timeBetweenReports * 1000L;
-	if((getFeatureReportId() == reportID) && (getReportInterval() == reportIntervalMicrosecond)) return (true);
-	else return (false);
-}
-
-//Add by Math: a function to print the Get Feature Response report contents
-//getFeatureResponseAvailable() function shall be execute before to be sure to have received the last Get Feature Response report
-void BNO080::printGetFeatureResponse()
-{
-	long reportIntervalMillisecond = (getReportInterval())/1000L;
-	Serial.print("Report ID : 0x");
-	Serial.println(getFeatureReportId(), HEX);
-	Serial.print("Report interval : ");
-	Serial.print(reportIntervalMillisecond);
-	Serial.println(" ms");
 }

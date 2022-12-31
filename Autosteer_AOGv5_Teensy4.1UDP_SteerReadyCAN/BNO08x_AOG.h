@@ -5,7 +5,6 @@
   https://www.sparkfun.com/products/14686
 
   Written by Nathan Seidle @ SparkFun Electronics, December 28th, 2017
-  Edited by Math for AgOpenGPS application
 
   The BNO080 IMU is a powerful triple axis gyro/accel/magnetometer coupled with an ARM processor
   to maintain and complete all the complex calculations for various VR, inertial, step counting,
@@ -19,13 +18,8 @@
   Development environment specifics:
   Arduino IDE 1.8.3
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  SparkFun code, firmware, and software is released under the MIT License.
+	Please see LICENSE.md for further details.
 */
 
 #pragma once
@@ -77,7 +71,6 @@ const byte CHANNEL_GYRO = 5;
 #define SHTP_REPORT_PRODUCT_ID_REQUEST 0xF9
 #define SHTP_REPORT_BASE_TIMESTAMP 0xFB
 #define SHTP_REPORT_SET_FEATURE_COMMAND 0xFD
-#define SHTP_REPORT_GET_FEATURE_RESPONSE 0xFC //Add by Math : Get Feature Response report
 
 //All the different sensors and features we can get reports from
 //These are used when enabling a given sensor
@@ -106,6 +99,9 @@ const byte CHANNEL_GYRO = 5;
 #define FRS_RECORDID_GYROSCOPE_CALIBRATED 0xE306
 #define FRS_RECORDID_MAGNETIC_FIELD_CALIBRATED 0xE309
 #define FRS_RECORDID_ROTATION_VECTOR 0xE30B
+
+// Reset complete packet (BNO08X Datasheet p.24 Figure 1-27)
+#define EXECUTABLE_RESET_COMPLETE 0x1
 
 //Command IDs from section 6.4, page 42
 //These are used to calibrate, initialize, set orientation, tare etc the sensor
@@ -138,7 +134,10 @@ public:
 	void enableDebugging(Stream &debugPort = Serial); //Turn on debug printing. If user doesn't specify then Serial will be used.
 
 	void softReset();	  //Try to reset the IMU via software
+	bool hasReset(); //Returns true if the sensor has reported a reset. Reading this will unflag the reset.
 	uint8_t resetReason(); //Query the IMU for the reason it last reset
+	void modeOn();	  //Use the executable channel to turn the BNO on
+	void modeSleep();	  //Use the executable channel to put the BNO to sleep
 
 	float qToFloat(int16_t fixedPointValue, uint8_t qPoint); //Given a Q value, converts fixed point floating to regular floating point number
 
@@ -158,6 +157,7 @@ public:
 	void enableLinearAccelerometer(uint16_t timeBetweenReports);
 	void enableGyro(uint16_t timeBetweenReports);
 	void enableMagnetometer(uint16_t timeBetweenReports);
+	void enableTapDetector(uint16_t timeBetweenReports);
 	void enableStepCounter(uint16_t timeBetweenReports);
 	void enableStabilityClassifier(uint16_t timeBetweenReports);
 	void enableActivityClassifier(uint16_t timeBetweenReports, uint32_t activitiesToEnable, uint8_t (&activityConfidences)[9]);
@@ -167,9 +167,11 @@ public:
 	void enableGyroIntegratedRotationVector(uint16_t timeBetweenReports);
 
 	bool dataAvailable(void);
-	void parseInputReport(void);   //Parse sensor readings out of report
-	void parseCommandReport(void); //Parse command responses out of report
+	uint16_t getReadings(void);
+	uint16_t parseInputReport(void);   //Parse sensor readings out of report
+	uint16_t parseCommandReport(void); //Parse command responses out of report
 
+	void getQuat(float &i, float &j, float &k, float &real, float &radAccuracy, uint8_t &accuracy);
 	float getQuatI();
 	float getQuatJ();
 	float getQuatK();
@@ -177,25 +179,30 @@ public:
 	float getQuatRadianAccuracy();
 	uint8_t getQuatAccuracy();
 
+	void getAccel(float &x, float &y, float &z, uint8_t &accuracy);
 	float getAccelX();
 	float getAccelY();
 	float getAccelZ();
 	uint8_t getAccelAccuracy();
 
+	void getLinAccel(float &x, float &y, float &z, uint8_t &accuracy);
 	float getLinAccelX();
 	float getLinAccelY();
 	float getLinAccelZ();
 	uint8_t getLinAccelAccuracy();
 
+	void getGyro(float &x, float &y, float &z, uint8_t &accuracy);
 	float getGyroX();
 	float getGyroY();
 	float getGyroZ();
 	uint8_t getGyroAccuracy();
 
+	void getFastGyro(float &x, float &y, float &z);
 	float getFastGyroX();
 	float getFastGyroY();
 	float getFastGyroZ();
 
+	void getMag(float &x, float &y, float &z, uint8_t &accuracy);
 	float getMagX();
 	float getMagY();
 	float getMagZ();
@@ -210,8 +217,8 @@ public:
 	void saveCalibration();
 	void requestCalibrationStatus(); //Sends command to get status
 	boolean calibrationComplete();   //Checks ME Cal response for byte 5, R0 - Status
-	boolean printMECalibrationRespond(); //Add by Math : function to print the Configure ME Calibration Command Respond Report
 
+	uint8_t getTapDetector();
 	uint32_t getTimeStamp();
 	uint16_t getStepCount();
 	uint8_t getStabilityClassifier();
@@ -237,12 +244,6 @@ public:
 	void setFeatureCommand(uint8_t reportID, uint16_t timeBetweenReports, uint32_t specificConfig);
 	void sendCommand(uint8_t command);
 	void sendCalibrateCommand(uint8_t thingToCalibrate);
-	
-	boolean getFeatureResponseAvailable(); //Add by Math: a function to check if a Get Feature Response report is received from BNO08x
-	uint8_t getFeatureReportId(); //Add by Math: a function to return the Feature Report ID of the last Get Feature Response report
-	long getReportInterval(); //Add by Math: a function to return the Report Interval of the last Get Feature Response report
-	boolean checkReportEnable(uint8_t reportID, uint16_t timeBetweenReports); //Add by Math: a function to check if the Get Feature Response report received from BNO08x correspond to what we have enable
-	void printGetFeatureResponse(); //Add by Math: a function to print the Get Feature Response report contents
 
 	//Metadata functions
 	int16_t getQ1(uint16_t recordID);
@@ -276,6 +277,8 @@ private:
 	uint8_t _int;
 	uint8_t _rst;
 
+	bool _hasReset = false;		// Keeps track of any Reset Complete packets we receive. 
+
 	//These are the raw sensor values (without Q applied) pulled from the user requested Input Report
 	uint16_t rawAccelX, rawAccelY, rawAccelZ, accelAccuracy;
 	uint16_t rawLinAccelX, rawLinAccelY, rawLinAccelZ, accelLinAccuracy;
@@ -283,20 +286,13 @@ private:
 	uint16_t rawMagX, rawMagY, rawMagZ, magAccuracy;
 	uint16_t rawQuatI, rawQuatJ, rawQuatK, rawQuatReal, rawQuatRadianAccuracy, quatAccuracy;
 	uint16_t rawFastGyroX, rawFastGyroY, rawFastGyroZ;
+	uint8_t tapDetector;
 	uint16_t stepCount;
 	uint32_t timeStamp;
 	uint8_t stabilityClassifier;
 	uint8_t activityClassifier;
 	uint8_t *_activityConfidences;						  //Array that store the confidences of the 9 possible activities
 	uint8_t calibrationStatus;							  //Byte R0 of ME Calibration Response
-	//Add by Math: followings lines for printMECalibrationRespond() function
-	uint8_t calibrationAccEnable;                         //Byte R1 of ME Calibration Response
-	uint8_t calibrationGyroEnable;                        //Byte R2 of ME Calibration Response
-	uint8_t calibrationMagnEnable;                        //Byte R3 of ME Calibration Response
-	uint8_t calibrationPlanEnable;                        //Byte R4 of ME Calibration Response
-	uint8_t featureReportId;                              //Byte 0 of Get Feature Response
-	long reportInterval;                                  //Byte [5:8] of Get Feature Response
-	//Add by Math: end
 	uint16_t memsRawAccelX, memsRawAccelY, memsRawAccelZ; //Raw readings from MEMS sensor
 	uint16_t memsRawGyroX, memsRawGyroY, memsRawGyroZ;	//Raw readings from MEMS sensor
 	uint16_t memsRawMagX, memsRawMagY, memsRawMagZ;		  //Raw readings from MEMS sensor

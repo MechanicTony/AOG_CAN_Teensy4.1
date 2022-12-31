@@ -86,11 +86,15 @@
   #define REMOTE_PIN 8  //PB0
 
   #define CONST_180_DIVIDED_BY_PI 57.2957795130823
+  #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
 
   #include <Wire.h>
   #include <EEPROM.h> 
-
+  #include "zNMEAParser.h"
   #include "BNO08x_AOG.h"
+
+/* A parser is declared with 3 handlers at most */
+NMEAParser<2> parser;
 
 //Used to set CPU speed
 extern "C" uint32_t set_arm_clock(uint32_t frequency); // required prototype
@@ -194,12 +198,13 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
   bool isTriggered = false, blink;
 
-  //100hz summing of gyro
-  float gyro, gyroSum;
-  float lastHeading;
+  //IMU data
+  float roll = 0;
+  float pitch = 0;
+  float yaw = 0;
 
-  float roll, rollSum;
-  float pitch, pitchSum;
+  //Swap BNO08x roll & pitch?
+  const bool swapRollPitch = false;
 
   // booleans to see if we are using CMPS or BNO08x
   bool useCMPS = false;
@@ -213,13 +218,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   const int16_t nrBNO08xAdresses = sizeof(bno08xAddresses)/sizeof(bno08xAddresses[0]);
   uint8_t bno08xAddress;
   BNO080 bno08x;
-
-  float bno08xHeading = 0;
-  double bno08xRoll = 0;
-  double bno08xPitch = 0;
-
-  int16_t bno08xHeading10x = 0;
-  int16_t bno08xRoll10x = 0;
 
   const uint16_t WATCHDOG_THRESHOLD = 100;
   const uint16_t WATCHDOG_FORCE_VALUE = WATCHDOG_THRESHOLD + 2; // Should be greater than WATCHDOG_THRESHOLD
@@ -235,6 +233,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint8_t helloCounter=0;
   
   //Heart beat hello AgIO - v5.6
+  uint8_t helloFromIMU[] = { 128, 129, 121, 121, 1, 1, 71 };
   uint8_t helloFromAutoSteer[] = { 128, 129, 126, 126, 5, 0, 0, 0, 0, 0, 71 };
   int16_t helloSteerPosition = 0;
     
@@ -400,22 +399,12 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           {
             Wire.setClock(400000); //Increase I2C data rate to 400kHz
   
+            delay(300);
+
             // Use GameRotationVector
             bno08x.enableGameRotationVector(GYRO_LOOP_TIME); 
   
-            // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
-            if (bno08x.getFeatureResponseAvailable() == true)
-            {
-              if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, (GYRO_LOOP_TIME)) == false) bno08x.printGetFeatureResponse();
-
-              // Break out of loop
-              useBNO08x = true;
-              break;
-            }
-            else 
-            {
-              Serial.println("BNO08x init fails!!");
-            }
+            useBNO08x = true;
           }
           else
           {
@@ -427,10 +416,11 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           Serial.println("Error = 4");
           Serial.println("BNO08X not Connected or Found"); 
         }
+        if (useBNO08x) break;
       }
     }
   
-    EEPROM.get(0, EEread);              // read identifier
+    EEPROM.get(0, EEread);     // read identifier
       
     if (EEread != EEP_Ident)   // check on first start and write EEPROM
     {           
@@ -748,8 +738,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     //--CAN--End-----
 
     //**GPS**
-      Read_IMU();
-
+      if (useCMPS || useBNO08x) Read_IMU();
       if (gpsMode == 1 || gpsMode == 3)
       {
           Forward_GPS();
@@ -758,7 +747,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       {
           Panda_GPS();
       }
-
       Forward_Ntrip();
   
      //Check for UDP Packet
@@ -905,6 +893,13 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
        Udp.write(helloFromAutoSteer, sizeof(helloFromAutoSteer));
        Udp.endPacket();
            
+       if (useBNO08x || useCMPS)
+       {
+           Udp.beginPacket(ipDestination, 9999);
+           Udp.write(helloFromIMU, sizeof(helloFromIMU));
+           Udp.endPacket();
+       }
+
       }
           
 //Machine Data
