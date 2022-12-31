@@ -204,7 +204,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   float yaw = 0;
 
   //Swap BNO08x roll & pitch?
-  const bool swapRollPitch = false;
+  const bool swapRollPitch = true;
 
   // booleans to see if we are using CMPS or BNO08x
   bool useCMPS = false;
@@ -739,7 +739,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
     //**GPS**
       if (useCMPS || useBNO08x) Read_IMU();
-      if (gpsMode == 1 || gpsMode == 3)
+      if (gpsMode == 1 || gpsMode == 2)
       {
           Forward_GPS();
       }
