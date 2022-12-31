@@ -103,10 +103,10 @@ void Help(){
   Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
-  Serial.println("Z = Change PVED parameter 64007 to 30");
+  Serial.println("Z = Danfoss PVED parameter setup");
+  Serial.println("    **GPS options**");
   Serial.println("Forwarding Mode: f = 115200, F = 460800");
-  Serial.println("Panda Mode: p = 115200, P = 460800");
-  Serial.println(" ");
+  Serial.println("Panda Mode: p = 115200, P = 460800\r\n");
 }
 
 //**************************************************************************************
@@ -242,7 +242,7 @@ void PVED64007() {
     V_Bus.setFIFOFilter(0, 0x18EFFD13, EXT);  
     V_Bus.setFIFOFilter(1, 0x18EFFC13, EXT);
 
-    Serial.println("AgOpenGPS Danfoss PVED Config Mode:");
+    Serial.println("\r\nAgOpenGPS Danfoss PVED Config Mode:");
     Serial.println("Send X to exit and reset Teensy");
     Serial.println("Send S to print CAN message");
     Serial.println("Send s to stop printing message");
@@ -251,6 +251,11 @@ void PVED64007() {
     Serial.println("Send C to commit settings to PVED\r\n");
 
     Serial.println("Please power ON PVED valve...");
+
+    while (Serial.available())
+    {
+        Serial.read();                //Clear the serial buffer
+    }
 
     CAN_message_t ConfigData;
     while (V_Bus.read(ConfigData)) 
@@ -262,18 +267,18 @@ void PVED64007() {
     {
         if (Serial.available())         // Read Data From Serail Monitor 
         {
-            byte b = Serial.read();
-            if (b == 'X')               //Exit Service Mode
+            byte e = Serial.read();
+            if (e == 'X')               //Exit Service Mode
             {
                 Serial.println("Restarting Teensy...");
                 delay(1000);
                 SCB_AIRCR = 0x05FA0004; //Teensy Reset
             }
-            else if (b == 'W') WriteParameters();   //Write Basic Parameters
-            else if (b == 'C') Commit();            //Commit / Save Data
-            else if (b == 'R') ReadParameters = 1;  //Get Basic Parameters
-            else if (b == 'S') showMessage = 1;     //Get Basic Parameters
-            else if (b == 's') showMessage = 0;     //Get Basic Parameters
+            else if (e == 'W') WriteParameters();   //Write Basic Parameters
+            else if (e == 'C') Commit();            //Commit / Save Data
+            else if (e == 'R') ReadParameters = 1;  //Get Basic Parameters
+            else if (e == 'S') showMessage = 1;     //Get Basic Parameters
+            else if (e == 's') showMessage = 0;     //Get Basic Parameters
             else
             {
                 Serial.println("No command, retry");
@@ -550,7 +555,7 @@ void WriteParameters()
     V_Bus.write(msgP);
     
     delay(100);
-    Serial.println("sent parameter change request, make sure you send commit command next");
+    Serial.println("Sent parameter change request, make sure you send commit command next");
 }
 
 //**************************************************************************************

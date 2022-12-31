@@ -189,7 +189,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint32_t IMU_currentTime = IMU_DELAY_TIME;
 
   //IMU data                            
-  const uint16_t GYRO_LOOP_TIME = 10;   //100Hz IMU 
+  const uint16_t GYRO_LOOP_TIME = 20;   //50Hz IMU 
   uint32_t lastGyroTime = GYRO_LOOP_TIME;
 
   bool isTriggered = false, blink;
@@ -717,153 +717,66 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           }
     } //end of main timed loop
 
-//-----IMU Timed Loop-----
-
-//IMU message loop
-
-  IMU_currentTime = millis();
-
-  if (isTriggered && (IMU_currentTime - IMU_lastTime) >= IMU_DELAY_TIME)
-    {
-      isTriggered = false;
-      int16_t temp = 0;
-      
-      if (useCMPS)
-      {
-        Wire.beginTransmission(CMPS14_ADDRESS);  
-        Wire.write(0x02);                     
-        Wire.endTransmission();
-        
-        Wire.requestFrom(CMPS14_ADDRESS, 2); 
-        while(Wire.available() < 2);       
-      
-        //the heading x10
-        data[6] = Wire.read();
-        data[5] = Wire.read();
-                    
-        //roll
-        Wire.beginTransmission(CMPS14_ADDRESS);
-        Wire.write(0x1C);
-        Wire.endTransmission();
-
-        Wire.requestFrom(CMPS14_ADDRESS, 2);
-        while (Wire.available() < 2);
-        
-        data[8] = Wire.read();
-        data[7] = Wire.read();
-      }
-      
-      else if(useBNO08x)
-      {
-          //the heading x10
-          data[5] = (uint8_t)bno08xHeading10x;
-          data[6] = bno08xHeading10x >> 8;
-  
-          //the roll x10
-          temp = (int16_t)roll;
-          data[7] = (uint8_t)temp;
-          data[8] = temp >> 8;        
-      }
-      
-    //checksum
-      int16_t CK_A = 0;
-    
-      for (int16_t i = 2; i < dataSize - 1; i++)
-      {
-          CK_A = (CK_A + data[i]);
-      }
-      
-      data[dataSize - 1] = CK_A;
-
-      if (useCMPS || useBNO08x)
-      {
-      //off to AOG
-      Udp.beginPacket(ipDestination, 9999);
-      Udp.write(data, dataSize);
-      Udp.endPacket();
-      }   
-    }
-//-----End IMU Timed Loop-----
-
-//Gyro Timmed loop
-
-  IMU_currentTime = millis();
-
-  if ((IMU_currentTime - lastGyroTime) >= GYRO_LOOP_TIME)
-    {
-      lastGyroTime = IMU_currentTime;
-      
-      if(useBNO08x)
-      {
-        if (bno08x.dataAvailable() == true)
-       {
-            bno08xHeading = (bno08x.getYaw()) * CONST_180_DIVIDED_BY_PI; // Convert yaw / heading to degrees
-            bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
-
-            if (bno08xHeading < 0 && bno08xHeading >= -180) //Scale BNO085 yaw from [-180�;180�] to [0;360�]
-            {
-                bno08xHeading = bno08xHeading + 360;
-            }
-
-            //roll = (bno08x.getRoll()) * CONST_180_DIVIDED_BY_PI;
-            roll = (bno08x.getPitch()) * CONST_180_DIVIDED_BY_PI;
-
-            roll = roll * 10;
-            bno08xHeading10x = (int16_t)(bno08xHeading * 10);
-        }
-      }     
-    }
-//-----End Gyro Timed Loop-----
-
     //This runs continuously, outside of the timed loop, keeps checking for new udpData, turn sense, CAN data etc
     delay(1); 
 
-//--CAN--Start--
+    //--CAN--Start--
+      VBus_Receive();
+      ISO_Receive();
+      K_Receive();
 
-  VBus_Receive();
-  ISO_Receive();
-  K_Receive();
-
-  if ((millis()) > relayTime){
+    if ((millis()) > relayTime){
     digitalWrite(engageLED,LOW);
     engageCAN = 0;
     }
-//Service Tool
-  if (Serial.available()){        // Read Data From Serial Monitor 
-    byte b = Serial.read();
+
+    //Service Tool
+      if (Serial.available())
+      {        // Read Data From Serial Monitor 
+        byte b = Serial.read();
     
-    while (Serial.available()){
-      Serial.read();              //Clear the serial buffer
-    }
+        while (Serial.available()){
+          Serial.read();              //Clear the serial buffer
+        }
     
-    if ( b == 'S') {
-      Service = 1; 
-      Service_Tool();
-    }
-}
-
-//--CAN--End-----
-
-//**GPS**
-  Forward_GPS();
-  Forward_Ntrip();
-  
- //Check for UDP Packet
-    int packetSize = Udp.parsePacket();
-    if (packetSize) {
-      //Serial.println("UDP Data Avalible"); 
-      udpSteerRecv();
-    }
-
-    if (encEnable)
-    {
-      thisEnc = digitalRead(REMOTE_PIN);
-      if (thisEnc != lastEnc)
-      {
-        lastEnc = thisEnc;
-        if ( lastEnc) EncoderFunc();
+        if ( b == 'S') {
+          Service = 1; 
+          Service_Tool();
+        }
       }
-    }
+
+    //--CAN--End-----
+
+    //**GPS**
+      Read_IMU();
+
+      if (gpsMode == 1 || gpsMode == 3)
+      {
+          Forward_GPS();
+      }
+      else
+      {
+          Panda_GPS();
+      }
+
+      Forward_Ntrip();
+  
+     //Check for UDP Packet
+        int packetSize = Udp.parsePacket();
+        if (packetSize) {
+          //Serial.println("UDP Data Avalible"); 
+          udpSteerRecv();
+        }
+
+        if (encEnable)
+        {
+          thisEnc = digitalRead(REMOTE_PIN);
+          if (thisEnc != lastEnc)
+          {
+            lastEnc = thisEnc;
+            if ( lastEnc) EncoderFunc();
+          }
+        }
       
   } // end of main loop
 
