@@ -2,6 +2,10 @@
 // Danfoss PVED-CL Service Tool for use with AgOpenGPS
 // The Danfoss PVED-CL parts are not in here yet, but will be copied over soon
 
+//Ryan Claas addons
+// 30-12-2022  Added PVED-CL parameter 64007 change code to CAN Service Tool page. Use to change CLAAS PVED-CL parameter 64007
+//             Add CLAAS pre Mother reg tractor CSM button messages on main Autosteer_AOG_Teensy4.1 page line 156-160 Comment out lines not required to select pre MR or MR/Stage5
+
 //----------------------------------------------------------
 //Notes from Ryan (When Changing Claas Parameter 64007) 
 //
@@ -55,6 +59,11 @@ void Service_Tool (void)
         else if ( b == '7') AgOpenGPS();
         else if ( b == 'R') ReadCAN();
         else if ( b == 'S') StopCAN();
+        else if (b == 'Z') PVED64007();
+        else if ( b == 'f') gpsModeOne();
+        else if ( b == 'F') gpsModeTwo();
+        else if ( b == 'p') gpsModeThree();
+        else if ( b == 'P') gpsModeFour();
 
         else
         {
@@ -94,7 +103,10 @@ void Help(){
   Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
-  Serial.println(" ");
+  Serial.println("Z = Danfoss PVED parameter setup");
+  Serial.println("    **GPS options**");
+  Serial.println("Forwarding Mode: f = 115200, F = 460800");
+  Serial.println("Panda Mode: p = 115200, P = 460800\r\n");
 }
 
 //**************************************************************************************
@@ -184,4 +196,388 @@ ShowCANData = 0;
   Serial.println("CAN Data OFF, Send X To Exit Service Tool");
   Serial.println(" ");
 }
- 
+//**************************************************************************************
+void gpsModeOne() {
+    EEPROM.update(72, 1);
+    Serial.println("GPS Forwarding @ 115200, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void gpsModeTwo() {
+    EEPROM.update(72, 2);
+    Serial.println("GPS Forwarding @ 460800, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void gpsModeThree() {
+    EEPROM.update(72, 3);
+    Serial.println("GPS Panda @ 115200, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void gpsModeFour() {
+    EEPROM.update(72, 4);
+    Serial.println("GPS Panda @ 460800, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void PVED64007() {
+    static bool configPVED = true;
+    static bool showMessage = false;
+    static int ReadParameters = 0;
+    int16_t S16Value = 9999;
+    uint16_t U16Value = 9999;
+    uint32_t U32Value = 9999;
+
+    //Reset the CAN filters for config tool only
+    V_Bus.setFIFOFilter(REJECT_ALL);
+    V_Bus.setFIFOFilter(0, 0x18EFFD13, EXT);  
+    V_Bus.setFIFOFilter(1, 0x18EFFC13, EXT);
+
+    Serial.println("\r\nAgOpenGPS Danfoss PVED Config Mode:");
+    Serial.println("Send X to exit and reset Teensy");
+    Serial.println("Send S to print CAN message");
+    Serial.println("Send s to stop printing message");
+    Serial.println("Send R to read PVED parameters");
+    Serial.println("Send W to change parameter 64007 to 30(Dec) 1E(Hex)");
+    Serial.println("Send C to commit settings to PVED\r\n");
+
+    Serial.println("Please power ON PVED valve...");
+
+    while (Serial.available())
+    {
+        Serial.read();                //Clear the serial buffer
+    }
+
+    CAN_message_t ConfigData;
+    while (V_Bus.read(ConfigData)) 
+    {
+        //Make sure theres no messages left
+    }
+
+    while (configPVED == true)
+    {
+        if (Serial.available())         // Read Data From Serail Monitor 
+        {
+            byte e = Serial.read();
+            if (e == 'X')               //Exit Service Mode
+            {
+                Serial.println("Restarting Teensy...");
+                delay(1000);
+                SCB_AIRCR = 0x05FA0004; //Teensy Reset
+            }
+            else if (e == 'W') WriteParameters();   //Write Basic Parameters
+            else if (e == 'C') Commit();            //Commit / Save Data
+            else if (e == 'R') ReadParameters = 1;  //Get Basic Parameters
+            else if (e == 'S') showMessage = 1;     //Get Basic Parameters
+            else if (e == 's') showMessage = 0;     //Get Basic Parameters
+            else
+            {
+                Serial.println("No command, retry");
+                Serial.println(" ");
+                delay(50);
+            }
+
+            while (Serial.available())
+            {
+                Serial.read();                //Clear the serial buffer
+            }
+        }
+
+        if (V_Bus.read(ConfigData))
+        {
+            if (showMessage == 1) 
+            {
+                Serial.print(", V-Bus");
+                Serial.print(", MB: "); Serial.print(ConfigData.mb);
+                Serial.print(", ID: 0x"); Serial.print(ConfigData.id, HEX);
+                Serial.print(", EXT: "); Serial.print(ConfigData.flags.extended);
+                Serial.print(", LEN: "); Serial.print(ConfigData.len);
+                Serial.print(", DATA: ");
+                for (uint8_t i = 0; i < 8; i++) {
+                    Serial.print(ConfigData.buf[i]); Serial.print(", ");
+                }
+                Serial.println("");
+            }
+
+            //Valve current mode
+            if ((ConfigData.buf[0] == 0x0F) && (ConfigData.buf[1] == 0xAA)) 
+            {
+                if ((ConfigData.buf[2] == 0x55)) Serial.println("PVED Awake In Calabration Mode");
+                if ((ConfigData.buf[2] == 0xAA)) Serial.println("PVED Awake In Operation Mode");
+            }
+
+            //Config data reading
+            if ((ConfigData.buf[0] == 0x0F) && ((ConfigData.buf[1] == 0xA1) || (ConfigData.buf[1] == 0xA3))) 
+            {
+
+                if ((ConfigData.buf[2] == 0xFC) && (ConfigData.buf[3] == 0x01)) {
+                    S16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("508 Kp Gain = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xC2) && (ConfigData.buf[3] == 0x02)) {
+                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("706 Vcap = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xC3) && (ConfigData.buf[3] == 0x02)) {
+                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("707 StrkVol (Cyd size) = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x07) && (ConfigData.buf[3] == 0xFA)) {
+                    Serial.print("64007 (Setpoint Controller Address) = ");
+                    Serial.print(ConfigData.buf[4], DEC);
+                    Serial.print(",DEC ");
+                    Serial.print(ConfigData.buf[4], HEX);
+                    Serial.print(",HEX ");
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x38) && (ConfigData.buf[3] == 0xFE)) {
+                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("AD1_1000_Left (WAS Left Raw Counts) = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x3B) && (ConfigData.buf[3] == 0xFE)) {
+                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("AD1_1000_Right (WAS Right Raw Counts) = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x3E) && (ConfigData.buf[3] == 0xFE)) {
+                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("AD1_Neutral (WAS Centre Raw Counts) = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x4B) && (ConfigData.buf[3] == 0xFE)) {
+                    U32Value = (ConfigData.buf[7]);
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[6]));
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[5]));
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[4]));
+                    Serial.print("True Angle Left = ");
+                    Serial.print(U32Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x4C) && (ConfigData.buf[3] == 0xFE)) {
+                    U32Value = (ConfigData.buf[7]);
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[6]));
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[5]));
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[4]));
+                    Serial.print("True Angle Right = ");
+                    Serial.print(U32Value);
+                    Serial.println(" ");
+                }
+
+            }
+            Serial.println(" ");
+
+        }
+
+        //Get Basic Paramters
+        if (ReadParameters != 0) 
+        {
+
+            static CAN_message_t msgR;
+
+            if (ReadParameters == 1) {
+                Serial.println("Get Parameter 508");
+                msgR.id = 0x98EF13FD;
+                msgR.flags.extended = true;
+                msgR.len = 8;
+                msgR.buf[0] = 0x0F;
+                msgR.buf[1] = 0xA0;
+                msgR.buf[2] = 0xFC;
+                msgR.buf[3] = 0x01;
+                msgR.buf[4] = 0x00;
+                msgR.buf[5] = 0x00;
+                msgR.buf[6] = 0x00;
+                msgR.buf[7] = 0x00;
+                V_Bus.write(msgR);
+                ReadParameters = 2;
+            }
+
+            else if (ReadParameters == 2) {
+                Serial.println("Get Parameter 706");
+                msgR.buf[2] = 0xC2;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 3;
+            }
+
+            else if (ReadParameters == 3) {
+                Serial.println("Get Parameter 707");
+                msgR.buf[2] = 0xC3;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 4;
+            }
+
+            else if (ReadParameters == 4) {
+                Serial.println("Get Parameter 729");
+                msgR.buf[2] = 0xD9;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 5;
+            }
+
+            else if (ReadParameters == 5) {
+                Serial.println("Get Parameter 737");
+                msgR.buf[2] = 0xE1;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 6;
+            }
+
+            else if (ReadParameters == 6) {
+                Serial.println("Get Parameter 738");
+                msgR.buf[2] = 0xE2;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 7;
+            }
+
+            else if (ReadParameters == 7) {
+                Serial.println("Get Parameter 747");
+                msgR.buf[2] = 0xEB;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 8;
+            }
+
+            else if (ReadParameters == 8) {
+                Serial.println("Get Parameter 748");
+                msgR.buf[2] = 0xEC;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 9;
+            }
+
+            else if (ReadParameters == 9) {
+                Serial.println("Get Parameter 758");
+                msgR.buf[2] = 0xF6;
+                msgR.buf[3] = 0x02;
+                V_Bus.write(msgR);
+                ReadParameters = 10;
+            }
+
+            else if (ReadParameters == 10) {
+                Serial.println("Get Parameter 64007");
+                msgR.buf[2] = 0x07;
+                msgR.buf[3] = 0xFA;
+                V_Bus.write(msgR);
+                ReadParameters = 11;
+            }
+
+            else if (ReadParameters == 11) {
+                Serial.println("Get Parameter 65080");
+                msgR.buf[2] = 0x38;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 12;
+            }
+
+            else if (ReadParameters == 12) {
+                Serial.println("Get Parameter 65083");
+                msgR.buf[2] = 0x3B;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 13;
+            }
+
+            else if (ReadParameters == 13) {
+                Serial.println("Get Parameter 65086");
+                msgR.buf[2] = 0x3E;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 14;
+            }
+
+            else if (ReadParameters == 14) {
+                Serial.println("Get Parameter 65099");
+                msgR.buf[2] = 0x4B;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 15;
+            }
+
+            else if (ReadParameters == 15) {
+                Serial.println("Get Parameter 65100");
+                msgR.buf[2] = 0x4C;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 0;
+            }
+
+            delay(1000);
+        }
+    }
+}
+
+//**************************************************************************************
+
+void WriteParameters()
+{
+    // Change parameter 64007 to 30(Dec) 1E(Hex)
+    CAN_message_t msgP;
+    msgP.id = 0x98EF13FD;
+    msgP.flags.extended = true;
+    msgP.len = 8;
+    msgP.buf[0] = 0x0F;
+    msgP.buf[1] = 0xA2;
+    msgP.buf[2] = 0x07;
+    msgP.buf[3] = 0xFA;
+    msgP.buf[4] = 0x1E;
+    msgP.buf[5] = 0x00;
+    msgP.buf[6] = 0x00;
+    msgP.buf[7] = 0x00;
+    V_Bus.write(msgP);
+    
+    delay(100);
+    Serial.println("Sent parameter change request, make sure you send commit command next");
+}
+
+//**************************************************************************************
+
+void Commit()
+{
+    // Commit parameters to PVED-CL  
+    CAN_message_t msgC;
+    msgC.id = 0x98EF13FD;
+    msgC.flags.extended = true;
+    msgC.len = 8;
+    msgC.buf[0] = 0x0F;
+    msgC.buf[1] = 0xA6;
+    msgC.buf[2] = 0x5A;
+    msgC.buf[3] = 0x00;
+    msgC.buf[4] = 0x00;
+    msgC.buf[5] = 0x00;
+    msgC.buf[6] = 0x00;
+    msgC.buf[7] = 0x00;
+    V_Bus.write(msgC);
+
+    delay(1000);
+    Serial.println("Commiting data wait 1min, then turn Off PVED valve & restart");
+}
+
