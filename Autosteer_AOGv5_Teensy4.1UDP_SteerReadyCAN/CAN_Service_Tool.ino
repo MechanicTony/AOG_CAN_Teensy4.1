@@ -59,7 +59,7 @@ void Service_Tool (void)
         else if ( b == '7') AgOpenGPS();
         else if ( b == 'R') ReadCAN();
         else if ( b == 'S') StopCAN();
-        else if (b == 'Z') PVED64007();
+        else if ( b == 'Z') setupPVED();
         else if ( b == 'f') gpsModeOne();
         else if ( b == 'F') gpsModeTwo();
         else if ( b == 'p') gpsModeThree();
@@ -229,7 +229,7 @@ void gpsModeFour() {
     Serial.println(" ");
 }
 //**************************************************************************************
-void PVED64007() {
+void setupPVED() {
     static bool configPVED = true;
     static bool showMessage = false;
     static int ReadParameters = 0;
@@ -517,7 +517,7 @@ void PVED64007() {
             static CAN_message_t msgR;
 
             if (ReadParameters == 1) {
-                Serial.println("Get Parameter 508");
+                Serial.println("Get Parameter 1/22 508");
                 msgR.id = 0x98EF13FD;
                 msgR.flags.extended = true;
                 msgR.len = 8;
@@ -534,7 +534,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 2) {
-                Serial.println("Get Parameter 706");
+                Serial.println("Get Parameter 2/22 706");
                 msgR.buf[2] = 0xC2;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -542,7 +542,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 3) {
-                Serial.println("Get Parameter 707");
+                Serial.println("Get Parameter 3/22 707");
                 msgR.buf[2] = 0xC3;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -550,7 +550,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 4) {
-                Serial.println("Get Parameter 729");
+                Serial.println("Get Parameter 4/22 729");
                 msgR.buf[2] = 0xD9;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -558,7 +558,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 5) {
-                Serial.println("Get Parameter 737");
+                Serial.println("Get Parameter 5/22 737");
                 msgR.buf[2] = 0xE1;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -566,7 +566,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 6) {
-                Serial.println("Get Parameter 738");
+                Serial.println("Get Parameter 6/22 738");
                 msgR.buf[2] = 0xE2;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -574,7 +574,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 7) {
-                Serial.println("Get Parameter 747");
+                Serial.println("Get Parameter 7/22 747");
                 msgR.buf[2] = 0xEB;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -582,7 +582,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 8) {
-                Serial.println("Get Parameter 748");
+                Serial.println("Get Parameter 8/22 748");
                 msgR.buf[2] = 0xEC;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -590,7 +590,7 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 9) {
-                Serial.println("Get Parameter 758");
+                Serial.println("Get Parameter 9/22 758");
                 msgR.buf[2] = 0xF6;
                 msgR.buf[3] = 0x02;
                 V_Bus.write(msgR);
@@ -598,48 +598,104 @@ void PVED64007() {
             }
 
             else if (ReadParameters == 10) {
-                Serial.println("Get Parameter 64007");
-                msgR.buf[2] = 0x07;
-                msgR.buf[3] = 0xFA;
+                Serial.println("Get Parameter 10/22 1027");
+                msgR.buf[2] = 0x03;
+                msgR.buf[3] = 0x04;
                 V_Bus.write(msgR);
                 ReadParameters = 11;
             }
 
             else if (ReadParameters == 11) {
-                Serial.println("Get Parameter 65080");
-                msgR.buf[2] = 0x38;
-                msgR.buf[3] = 0xFE;
+                Serial.println("Get Parameter 11/22 5027");
+                msgR.buf[2] = 0xA3;
+                msgR.buf[3] = 0x13;
                 V_Bus.write(msgR);
                 ReadParameters = 12;
             }
 
             else if (ReadParameters == 12) {
-                Serial.println("Get Parameter 65083");
-                msgR.buf[2] = 0x3B;
-                msgR.buf[3] = 0xFE;
+                Serial.println("Get Parameter 12/22 64007");
+                msgR.buf[2] = 0x07;
+                msgR.buf[3] = 0xFA;
                 V_Bus.write(msgR);
                 ReadParameters = 13;
             }
 
             else if (ReadParameters == 13) {
-                Serial.println("Get Parameter 65086");
-                msgR.buf[2] = 0x3E;
-                msgR.buf[3] = 0xFE;
+                Serial.println("Get Parameter 13/22 64022");
+                msgR.buf[2] = 0x16;
+                msgR.buf[3] = 0xFA;
                 V_Bus.write(msgR);
                 ReadParameters = 14;
             }
 
             else if (ReadParameters == 14) {
-                Serial.println("Get Parameter 65099");
-                msgR.buf[2] = 0x4B;
-                msgR.buf[3] = 0xFE;
+                Serial.println("Get Parameter 14/22 64023");
+                msgR.buf[2] = 0x17;
+                msgR.buf[3] = 0xFA;
                 V_Bus.write(msgR);
-                ReadParameters = 15;
+            ReadParameters = 15;
             }
 
             else if (ReadParameters == 15) {
-                Serial.println("Get Parameter 65100");
+                Serial.println("Get Parameter 15/22 65080");
+                msgR.buf[2] = 0x38;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 16;
+            }
+
+            else if (ReadParameters == 16) {
+                Serial.println("Get Parameter 16/22 65083");
+                msgR.buf[2] = 0x3B;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 17;
+            }
+
+            else if (ReadParameters == 17) {
+                Serial.println("Get Parameter 17/22 65086");
+                msgR.buf[2] = 0x3E;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 18;
+            }
+
+            else if (ReadParameters == 18) {
+                Serial.println("Get Parameter 18/22 65099");
+                msgR.buf[2] = 0x4B;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 19;
+            }
+
+            else if (ReadParameters == 19) {
+                Serial.println("Get Parameter 19/22 65100");
                 msgR.buf[2] = 0x4C;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 20;
+            }
+
+            else if (ReadParameters == 20) {
+                Serial.println("Get Parameter 20/22 65101");
+                msgR.buf[2] = 0x4D;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 21;
+            }
+
+            else if (ReadParameters == 21) {
+                Serial.println("Get Parameter 21/22 65104");
+                msgR.buf[2] = 0x50;
+                msgR.buf[3] = 0xFE;
+                V_Bus.write(msgR);
+                ReadParameters = 22;
+            }
+
+            else if (ReadParameters == 22) {
+                Serial.println("Get Parameter 22/22 65112");
+                msgR.buf[2] = 0x58;
                 msgR.buf[3] = 0xFE;
                 V_Bus.write(msgR);
                 ReadParameters = 0;
