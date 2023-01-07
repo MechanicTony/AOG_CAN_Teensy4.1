@@ -277,8 +277,16 @@ void PVED64007() {
             else if (e == 'W') WriteParameters();   //Write Basic Parameters
             else if (e == 'C') Commit();            //Commit / Save Data
             else if (e == 'R') ReadParameters = 1;  //Get Basic Parameters
-            else if (e == 'S') showMessage = 1;     //Get Basic Parameters
-            else if (e == 's') showMessage = 0;     //Get Basic Parameters
+            else if (e == 'S')
+            {
+                showMessage = 1;
+                Serial.println("Show CAN Data");
+            }
+            else if (e == 's')
+            {
+                showMessage = 0;
+                Serial.println("Stop CAN Data");
+            }
             else
             {
                 Serial.println("No command, retry");
@@ -296,14 +304,14 @@ void PVED64007() {
         {
             if (showMessage == 1) 
             {
-                Serial.print(", V-Bus");
+                Serial.print("V-Bus");
                 Serial.print(", MB: "); Serial.print(ConfigData.mb);
                 Serial.print(", ID: 0x"); Serial.print(ConfigData.id, HEX);
                 Serial.print(", EXT: "); Serial.print(ConfigData.flags.extended);
                 Serial.print(", LEN: "); Serial.print(ConfigData.len);
                 Serial.print(", DATA: ");
                 for (uint8_t i = 0; i < 8; i++) {
-                    Serial.print(ConfigData.buf[i]); Serial.print(", ");
+                    Serial.print(ConfigData.buf[i], DEC); Serial.print(", ");
                 }
                 Serial.println("");
             }
@@ -320,23 +328,80 @@ void PVED64007() {
             {
 
                 if ((ConfigData.buf[2] == 0xFC) && (ConfigData.buf[3] == 0x01)) {
-                    S16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
                     Serial.print("508 Kp Gain = ");
                     Serial.print(S16Value);
                     Serial.println(" ");
                 }
 
                 else if ((ConfigData.buf[2] == 0xC2) && (ConfigData.buf[3] == 0x02)) {
-                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    U16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
                     Serial.print("706 Vcap = ");
                     Serial.print(U16Value);
                     Serial.println(" ");
                 }
 
                 else if ((ConfigData.buf[2] == 0xC3) && (ConfigData.buf[3] == 0x02)) {
-                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    U16Value = (((uint8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
                     Serial.print("707 StrkVol (Cyd size) = ");
                     Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xD9) && (ConfigData.buf[3] == 0x02)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("729 Xspl_1000 = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xE1) && (ConfigData.buf[3] == 0x02)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("737 Xspl_0 = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+
+                else if ((ConfigData.buf[2] == 0xE2) && (ConfigData.buf[3] == 0x02)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("738 Xspr_0 = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xEB) && (ConfigData.buf[3] == 0x02)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("747 Xspr_1000 = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xEC) && (ConfigData.buf[3] == 0x02)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("748 Closed Loop Xsp Offset = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xF6) && (ConfigData.buf[3] == 0x02)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("758 Xsp Cal Offset = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0x03) && (ConfigData.buf[3] == 0x04)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("1027 (Qm) Max Port Flow Faststeer = ");
+                    Serial.print(S16Value);
+                    Serial.println(" ");
+                }
+
+                else if ((ConfigData.buf[2] == 0xA3) && (ConfigData.buf[3] == 0x13)) {
+                    S16Value = (((int8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("5027 (Qm) Max Port Flow Autosteer = ");
+                    Serial.print(S16Value);
                     Serial.println(" ");
                 }
 
@@ -349,6 +414,26 @@ void PVED64007() {
                     Serial.println(" ");
                 }
 
+                //64022
+                else if ((ConfigData.buf[2] == 0x16) && (ConfigData.buf[3] == 0xFA)) {
+                    U16Value = (((uint8_t)ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("64022 SASA Cutout Speed = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                //64023
+                else if ((ConfigData.buf[2] == 0x17) && (ConfigData.buf[3] == 0xFA)) {
+                    U32Value = (ConfigData.buf[7]);
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[6]));
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[5]));
+                    U32Value = ((U32Value << 8) + (ConfigData.buf[4]));
+                    Serial.print("64023 SASA Timeout = ");
+                    Serial.print(U32Value);
+                    Serial.println(" ");
+                }
+
+                //65080
                 else if ((ConfigData.buf[2] == 0x38) && (ConfigData.buf[3] == 0xFE)) {
                     U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
                     Serial.print("AD1_1000_Left (WAS Left Raw Counts) = ");
@@ -356,6 +441,7 @@ void PVED64007() {
                     Serial.println(" ");
                 }
 
+                //65083
                 else if ((ConfigData.buf[2] == 0x3B) && (ConfigData.buf[3] == 0xFE)) {
                     U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
                     Serial.print("AD1_1000_Right (WAS Right Raw Counts) = ");
@@ -363,6 +449,7 @@ void PVED64007() {
                     Serial.println(" ");
                 }
 
+                //65086
                 else if ((ConfigData.buf[2] == 0x3E) && (ConfigData.buf[3] == 0xFE)) {
                     U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
                     Serial.print("AD1_Neutral (WAS Centre Raw Counts) = ");
@@ -370,6 +457,7 @@ void PVED64007() {
                     Serial.println(" ");
                 }
 
+                //65099
                 else if ((ConfigData.buf[2] == 0x4B) && (ConfigData.buf[3] == 0xFE)) {
                     U32Value = (ConfigData.buf[7]);
                     U32Value = ((U32Value << 8) + (ConfigData.buf[6]));
@@ -380,6 +468,7 @@ void PVED64007() {
                     Serial.println(" ");
                 }
 
+                //65100
                 else if ((ConfigData.buf[2] == 0x4C) && (ConfigData.buf[3] == 0xFE)) {
                     U32Value = (ConfigData.buf[7]);
                     U32Value = ((U32Value << 8) + (ConfigData.buf[6]));
@@ -390,12 +479,38 @@ void PVED64007() {
                     Serial.println(" ");
                 }
 
+                //65101
+                else if ((ConfigData.buf[2] == 0x4D) && (ConfigData.buf[3] == 0xFE)) {
+                    Serial.print("SASA Present = ");
+                    Serial.print(ConfigData.buf[4],DEC);
+                    Serial.println(" ");
+                }
+
+                //65104
+                else if ((ConfigData.buf[2] == 0x50) && (ConfigData.buf[3] == 0xFE)) {
+                    Serial.print("SASA Present = ");
+                    Serial.print(ConfigData.buf[4], DEC);
+                    Serial.println(" ");
+                }
+
+                //65112
+                else if ((ConfigData.buf[2] == 0x58) && (ConfigData.buf[3] == 0xFE)) {
+                    U16Value = ((ConfigData.buf[5] << 8) + ConfigData.buf[4]);
+                    Serial.print("65112 Vehicle Length = ");
+                    Serial.print(U16Value);
+                    Serial.println(" ");
+                }
+
+                else  {
+                    Serial.println("Im not sure ??");
+                }
+
             }
             Serial.println(" ");
 
         }
 
-        //Get Basic Paramters
+        //Get Basic Parameters
         if (ReadParameters != 0) 
         {
 
