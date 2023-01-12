@@ -66,7 +66,7 @@
   /////////////////////////////////////////////
 
   // if not in eeprom, overwrite 
-  #define EEP_Ident 0x5420
+  #define EEP_Ident 0x5421
 
   //   ***********  Motor drive connections  **************888
   //Connect ground only for cytron, Connect Ground and +5v for IBT2
@@ -92,6 +92,7 @@
   #include <EEPROM.h> 
   #include "zNMEAParser.h"
   #include "BNO08x_AOG.h"
+  #include <MultiMap.h>
 
 /* A parser is declared with 3 handlers at most */
 NMEAParser<2> parser;
@@ -175,6 +176,11 @@ uint16_t setCurve = 32128;       //Variable for Set Curve to CAN
 uint16_t estCurve = 32128;       //Variable for WAS from CAN
 int16_t FendtEstCurve = 0;       //Variable for WAS from CAN (Fendt Only)
 int16_t FendtSetCurve = 0;       //Variable for Set Curve to CAN CAN (Fendt Only)
+
+
+//WAS Calabration
+float inputWAS[] =  { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0};  //Input WAS do not adjust
+float outputWAS[] = { -60.00, -54.0, -48.0, -42.3, -36.1, -30.1, -23.4, -17.1, -11.0, -5.3, 0, 5.3, 11.0, 17.1, 23.4, 30.1, 36.1, 42.3, 48.0, 54.0, 60.0};  //Fendt 720 SCR
 
 boolean sendCAN = 0;              //Send CAN message every 2nd cycle (If needed ?)
 uint8_t steeringValveReady = 0;   //Variable for Steering Valve State from CAN
@@ -431,13 +437,15 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       EEPROM.put(60, networkAddress);      
       EEPROM.update(70, Brand);
       EEPROM.update(72, gpsMode);
+      EEPROM.put(80, outputWAS);
     }
     else 
     { 
       EEPROM.get(6, aogConfig); //Machine
       EEPROM.get(10, steerSettings);     // read the Settings
       EEPROM.get(40, steerConfig);
-      EEPROM.get(60, networkAddress);    
+      EEPROM.get(60, networkAddress);  
+      EEPROM.get(80, outputWAS);
       Brand = EEPROM.read(70);
       gpsMode = EEPROM.read(72);
     }
@@ -511,7 +519,19 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 31.12.2022");
       Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
       Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
-
+/*
+      //Show WAS CAL
+      elapsedMicros speedCheck = 0;
+      for (float i = -70.0; i < 71.0; i += 0.1)
+      {
+          float dist = multiMap<float>(i, inputWAS, outputWAS, 21);
+          Serial.print(i);
+          Serial.print('\t');
+          Serial.println(dist, 1);
+      }
+      Serial.print(speedCheck);
+      Serial.println(" Micros, Done...");
+*/
   }
 // End of Setup
 
@@ -653,6 +673,10 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       
           //Ackerman fix
           if (steerAngleActual < 0) steerAngleActual = (steerAngleActual * steerSettings.AckermanFix);
+
+          //Map WAS
+          float mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWAS, 21);
+          steerAngleActual = mappedWAS;
       
           if (watchdogTimer < WATCHDOG_THRESHOLD)
           { 
