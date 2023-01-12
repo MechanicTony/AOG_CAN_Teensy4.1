@@ -92,7 +92,6 @@
   #include <EEPROM.h> 
   #include "zNMEAParser.h"
   #include "BNO08x_AOG.h"
-  #include <MultiMap.h>
 
 /* A parser is declared with 3 handlers at most */
 NMEAParser<2> parser;
@@ -1132,4 +1131,24 @@ if (aogConfig.enableToolLift == 1){
 }
 
   bitStateOld = bitState;
+}
+
+//Rob Tillaart, https://github.com/RobTillaart/MultiMap
+template<typename T>
+T multiMap(T value, T* _in, T* _out, uint8_t size)
+{
+    // take care the value is within range
+    // value = constrain(value, _in[0], _in[size-1]);
+    if (value <= _in[0]) return _out[0];
+    if (value >= _in[size - 1]) return _out[size - 1];
+
+    // search right interval
+    uint8_t pos = 1;  // _in[0] already tested
+    while (value > _in[pos]) pos++;
+
+    // this will handle all exact "points" in the _in array
+    if (value == _in[pos]) return _out[pos];
+
+    // interpolate in the right segment for the rest
+    return (value - _in[pos - 1]) * (_out[pos] - _out[pos - 1]) / (_in[pos] - _in[pos - 1]) + _out[pos - 1];
 }
