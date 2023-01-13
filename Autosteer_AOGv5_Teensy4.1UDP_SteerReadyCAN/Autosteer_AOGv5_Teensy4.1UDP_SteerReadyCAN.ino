@@ -180,7 +180,7 @@ int16_t FendtSetCurve = 0;       //Variable for Set Curve to CAN CAN (Fendt Only
 //WAS Calabration
 float inputWAS[] =  { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0};  //Input WAS do not adjust
 //float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0 };
-float outputWAS[] = { -60.00, -54.0, -48.0, -42.3, -36.1, -30.1, -23.4, -17.1, -11.0, -5.3, 0, 5.3, 11.0, 17.1, 23.4, 30.1, 36.1, 42.3, 48.0, 54.0, 60.0};  //Fendt 720 SCR, CPD = 80
+float outputWAS[] = { -60.00, -54.0, -48.0, -42.3, -36.1, -30.1, -23.4, -17.1, -11.0, -5.5, 0, 5.5, 11.0, 17.1, 23.4, 30.1, 36.1, 42.3, 48.0, 54.0, 60.0};  //Fendt 720 SCR, CPD = 80
 
 boolean sendCAN = 0;              //Send CAN message every 2nd cycle (If needed ?)
 uint8_t steeringValveReady = 0;   //Variable for Steering Valve State from CAN
