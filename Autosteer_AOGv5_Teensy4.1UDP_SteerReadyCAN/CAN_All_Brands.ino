@@ -91,8 +91,8 @@ if (Brand == 5){
   }  
 
 if (Brand == 2){
-  ISO_Bus.setFIFOUserFilter(1, 0x0CEFAA08, 0x0CEF08AA, 0x0000FF00, EXT);  //To find CaseIH Engage Message
-  }  
+  ISO_Bus.setFIFOFilter(1,0x14FF7706,0x18FE4523, EXT);  //CaseIH Engage Message
+  }   
 
 if (Brand >= 0 && Brand <= 7){
   CAN_message_t msgISO;
@@ -131,7 +131,10 @@ if (Brand == 3){
   } 
 if (Brand == 5){
   K_Bus.setFIFOFilter(0, 0xCFFD899, EXT);  //FendtOne Engage
-  }  
+  }
+if (Brand == 2){
+  K_Bus.setFIFOFilter(1,0x14FF7706,0x18FE4523, EXT);  //CaseIH Engage Message
+  } 
   
   delay (500); 
 } //End CAN SETUP
@@ -512,6 +515,29 @@ if (K_Bus.read(KBusReceiveData)) {
       relayTime = ((millis() + 1000));
     }
    }
+  }
+    //case test
+    if (Brand == 2){
+  if (KBusReceiveData.id == 0x14FF7706){   //**case IH Engage Message**  
+    if ((KBusReceiveData.buf[0])== 130 && (KBusReceiveData.buf[1])== 1){   
+      Time = millis();
+      digitalWrite(engageLED,HIGH); 
+      engageCAN = 1;
+      relayTime = ((millis() + 1000));
+    }
+     if ((KBusReceiveData.buf[0])== 178 && (KBusReceiveData.buf[1])== 4){   
+      Time = millis();
+      digitalWrite(engageLED,HIGH); 
+      engageCAN = 1;
+      relayTime = ((millis() + 1000));
+    }
+   }
+     if (KBusReceiveData.id == 0x18FE4523){
+    KRearHitch = (KBusReceiveData.buf[0]); 
+    if(Brand != 2) pressureReading = KRearHitch;
+    if (steerConfig.PressureSensor == 1 && KRearHitch < steerConfig.PulseCountMax && Brand != 7) workCAN = 1; 
+    else workCAN = 0; 
+  }
   }
 
 if (ShowCANData == 1){
