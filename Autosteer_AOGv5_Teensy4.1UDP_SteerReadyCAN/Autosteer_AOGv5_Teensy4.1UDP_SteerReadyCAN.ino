@@ -8,20 +8,22 @@
 
 //----------------------------------------------------------
 
-//Tony / @Commonrail Version 31.12.2022
+//Tony / @Commonrail Version 29.01.2023
 //30.06.2022  - Ryan / @RGM Added JCB CAN engage message
-//02.07.2022  - Added Claas headland from Ryan (May still need newer version?)
+//02.07.2022  - Added Claas headland from Ryan
 //            - Fix up pilot valve output for Ryan Claas wiring mod 
-//31.12.2022  - Add Panda mode option, set via serial monitor service tool
-
+//31.12.2022  - Add Panda mode & GPS options, set via serial monitor service tool
+//29.01.2023  - Add WAS mapping option to fix wheel angle to turning radius conversion
+//            - Add Danfoss PVED-CL setup options (Claas mods mainly)
+//            - Add CaseIH/New Holland engage from CAN options
 
 // GPS forwarding mode: (Serial Bynav etc)
-// - GPS to Serial3 @ 115200, Forward to AgIO via UDP
+// - GPS to Serial3, Forward to AgIO via UDP
 // - Forward Ntrip from AgIO (Port 2233) to Serial3
 // - BNO08x/CMPS14 Data sent as IMU message (Not in Steering Message), sent 70ms after steering message from AgOpen.
 
 // Panda Mode 
-// - GPS to Serial3 @ 460800, Forward to AgIO as Panda via UDP
+// - GPS to Serial3, Forward to AgIO as Panda via UDP
 // - Forward Ntrip from AgIO (Port 2233) to Serial3
 // - BNO08x/CMPS14 Data sent with Panda data
 
@@ -44,7 +46,7 @@
 //             Note: The above is temporary use of unused variable, as one day we will get hitch % added to AgOpen
 //             Note: There is a AgOpenGPS on MechanicTony GitHub with these two labels & picture changed
 
-//Fendt K-Bus - (Not FendtOne models)
+//Fendt K-Bus - (Not FendtOne models) Note: This also works with Claas thanks to Ryan
 //Big Go/End is operated via hitch control in AgOpen 
 //Arduino Hitch settings must be enableded and sent to module
 //"Invert Relays" Uses section 1 to trigger hitch (Again temporary)
@@ -143,8 +145,8 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> V_Bus;    //Steering Valve Bus
 #define ledPin 5        //Option for LED, CAN Valve Ready To Steer.
 #define engageLED 24    //Option for LED, to see if Engage message is recived.
 
-uint8_t Brand = 1;          //Variable to set brand via serial monitor.
-uint8_t gpsMode = 1;        //Variable to set GPS mode via serial monitor.
+uint8_t Brand = 1;      //Variable to set brand via serial monitor.
+uint8_t gpsMode = 1;    //Variable to set GPS mode via serial monitor.
 
 uint32_t Time;          //Time Arduino has been running
 uint32_t relayTime;     //Time to keep "Button Pressed" from CAN Message
@@ -178,9 +180,9 @@ int16_t FendtSetCurve = 0;       //Variable for Set Curve to CAN CAN (Fendt Only
 
 
 //WAS Calabration
-float inputWAS[] =  { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0};  //Input WAS do not adjust
-//float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0 };
-float outputWAS[] = { -60.00, -54.0, -48.0, -42.3, -36.1, -30.1, -23.4, -17.1, -11.0, -5.5, 0, 5.5, 11.0, 17.1, 23.4, 30.1, 36.1, 42.3, 48.0, 54.0, 60.0};  //Fendt 720 SCR, CPD = 80
+float inputWAS[] =          { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0};  //Input WAS do not adjust
+float outputWAS[] =         { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0};
+float outputWASFendt[] =    { -60.00, -54.0, -48.0, -42.3, -36.1, -30.1, -23.4, -17.1, -11.0, -5.5, 0, 5.5, 11.0, 17.1, 23.4, 30.1, 36.1, 42.3, 48.0, 54.0, 60.0};  //Fendt 720 SCR, CPD = 80
 
 boolean sendCAN = 0;              //Send CAN message every 2nd cycle (If needed ?)
 uint8_t steeringValveReady = 0;   //Variable for Steering Valve State from CAN
@@ -516,7 +518,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
     //----Teensy 4.1 CANBus--End---------------------
 
-      Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 31.12.2022");
+      Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.01.2023");
       Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
       Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 /*
@@ -675,7 +677,10 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           if (steerAngleActual < 0) steerAngleActual = (steerAngleActual * steerSettings.AckermanFix);
 
           //Map WAS
-          float mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWAS, 21);
+          float mappedWAS;
+          if(Brand == 3) mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWASFendt, 21);
+          else if (Brand == 5) mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWASFendt, 21);
+          else mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWAS, 21);
           steerAngleActual = mappedWAS;
       
           if (watchdogTimer < WATCHDOG_THRESHOLD)
