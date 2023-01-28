@@ -90,10 +90,6 @@ if (Brand == 5){
   ISO_Bus.setFIFOFilter(1,0x18EF2CF0, EXT);  //Fendt Engage Message
   }  
 
-if (Brand == 2){
-  ISO_Bus.setFIFOFilter(1,0x14FF7706,0x18FE4523, EXT);  //CaseIH Engage Message
-  }   
-
 if (Brand >= 0 && Brand <= 7){
   CAN_message_t msgISO;
   if (Brand == 0) msgISO.id = 0x18EEFF1E;       //Claas
@@ -133,7 +129,8 @@ if (Brand == 5){
   K_Bus.setFIFOFilter(0, 0xCFFD899, EXT);  //FendtOne Engage
   }
 if (Brand == 2){
-  K_Bus.setFIFOFilter(1,0x14FF7706,0x18FE4523, EXT);  //CaseIH Engage Message
+  K_Bus.setFIFOFilter(0, 0x14FF7706, EXT);  //CaseIH Engage Message
+  K_Bus.setFIFOFilter(1, 0x18FE4523, EXT);  //CaseIH Rear Hitch Infomation
   } 
   
   delay (500); 
@@ -279,283 +276,328 @@ else if (Brand == 7){
 
 //---Receive V_Bus message
 
-void VBus_Receive(){
-  CAN_message_t VBusReceiveData;
-if (V_Bus.read(VBusReceiveData)) {
+void VBus_Receive()
+{
+    CAN_message_t VBusReceiveData;
+    if (V_Bus.read(VBusReceiveData)) {
 
-if (Brand == 0){
-  //**Current Wheel Angle & Valve State**
-  if (VBusReceiveData.id == 0x0CAC1E13){        
-        estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
-        steeringValveReady = (VBusReceiveData.buf[2]); 
-  } 
+        if (Brand == 0)
+        {
+          //**Current Wheel Angle & Valve State**
+          if (VBusReceiveData.id == 0x0CAC1E13){        
+                estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
+                steeringValveReady = (VBusReceiveData.buf[2]); 
+          } 
   
-  //**Engage Message**
-  if (VBusReceiveData.id == 0x18EF1CD2){
-   if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 0){   //Ryan Stage5 Models?
-      engageCAN = bitRead(VBusReceiveData.buf[0],2);
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      relayTime = ((millis() + 1000));
-      //*****Turn saftey valve ON**********
-      if (engageCAN == 1){
-      digitalWrite(PWM2_RPWM, 1);       
-      }
-   }
+          //**Engage Message**
+          if (VBusReceiveData.id == 0x18EF1CD2)
+          {
+            if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 0)   //Ryan Stage5 Models?
+            {
+                engageCAN = bitRead(VBusReceiveData.buf[0],2);
+                Time = millis();
+                digitalWrite(engageLED,HIGH); 
+                relayTime = ((millis() + 1000));
+                //*****Turn saftey valve ON**********
+                if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);       
+            }
 
-  else if ((VBusReceiveData.buf[0])== 39 && (VBusReceiveData.buf[2])== 241){   //Ryan MR Models?
-      engageCAN = bitRead(VBusReceiveData.buf[1],0);
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      relayTime = ((millis() + 1000));
-      //*****Turn saftey valve ON**********
-      if (engageCAN == 1){
-      digitalWrite(PWM2_RPWM, 1);       
-      }
-   }
+            else if ((VBusReceiveData.buf[0]) == 39 && (VBusReceiveData.buf[2]) == 241)   //Ryan MR Models?
+            {
+              engageCAN = bitRead(VBusReceiveData.buf[1],0);
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              relayTime = ((millis() + 1000));
+              //*****Turn saftey valve ON**********
+              if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);       
+            }
   
-   else if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 125){ //Tony Non MR Models? Ryan Mod to bit read engage bit
-      engageCAN = bitRead(VBusReceiveData.buf[0],2);
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      relayTime = ((millis() + 1000));
-      //*****Turn saftey valve ON**********
-      if (engageCAN == 1){
-      digitalWrite(PWM2_RPWM, 1);       
-      }
-   }
-  } 
+            else if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 125) //Tony Non MR Models? Ryan Mod to bit read engage bit
+            {
+               engageCAN = bitRead(VBusReceiveData.buf[0],2);
+               Time = millis();
+               digitalWrite(engageLED,HIGH); 
+               relayTime = ((millis() + 1000));
+               //*****Turn saftey valve ON**********
+               if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);       
+            }
+          } 
 
-  //**Work Message**
-  if (VBusReceiveData.id == 0x1CFFE6D2){
-    if ((VBusReceiveData.buf[0])== 144){
-     workCAN = bitRead(VBusReceiveData.buf[6],0);
-    }
-  }
-}//End Brand == 0
+          //**Work Message**
+          if (VBusReceiveData.id == 0x1CFFE6D2)
+          {
+            if ((VBusReceiveData.buf[0])== 144)
+            {
+             workCAN = bitRead(VBusReceiveData.buf[6],0);
+            }
+          }
+        }//End Brand == 0
 
- if (Brand == 1){
-  //**Current Wheel Angle & Valve State**
-  if (VBusReceiveData.id == 0x0CAC1C13){        
-        estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
-        steeringValveReady = (VBusReceiveData.buf[2]); 
-  } 
+        if (Brand == 1)
+        {
+            //**Current Wheel Angle & Valve State**
+            if (VBusReceiveData.id == 0x0CAC1C13)
+            {        
+                estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
+                steeringValveReady = (VBusReceiveData.buf[2]); 
+            } 
   
-  //**Engage Message**
-  if (VBusReceiveData.id == 0x18EF1C32){
-    if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1){   
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-   }
-  } 
-}//End Brand == 1   
+            //**Engage Message**
+            if (VBusReceiveData.id == 0x18EF1C32)
+            {
+                if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1)
+                {   
+                    Time = millis();
+                    digitalWrite(engageLED,HIGH); 
+                    engageCAN = 1;
+                    relayTime = ((millis() + 1000));
+                }
+            } 
+        }//End Brand == 1   
 
- if (Brand == 2){
-  //**Current Wheel Angle & Valve State**
-  if (VBusReceiveData.id == 0x0CACAA08){        
-        estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
-        steeringValveReady = (VBusReceiveData.buf[2]); 
-  } 
+        if (Brand == 2)
+        {
+          //**Current Wheel Angle & Valve State**
+          if (VBusReceiveData.id == 0x0CACAA08)
+          {        
+                estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
+                steeringValveReady = (VBusReceiveData.buf[2]); 
+          } 
   
-}//End Brand == 2 
+        }//End Brand == 2 
 
- if (Brand == 3){
-//**Current Wheel Angle**
- if (VBusReceiveData.len == 8 && VBusReceiveData.buf[0] == 5 && VBusReceiveData.buf[1] == 10){
-      FendtEstCurve = (((int8_t)VBusReceiveData.buf[4] << 8) + VBusReceiveData.buf[5]);
-      estCurve = FendtEstCurve + 32128;
-      }
+        if (Brand == 3)
+        {
+            //**Current Wheel Angle**
+            if (VBusReceiveData.len == 8 && VBusReceiveData.buf[0] == 5 && VBusReceiveData.buf[1] == 10)
+            {
+                FendtEstCurve = (((int8_t)VBusReceiveData.buf[4] << 8) + VBusReceiveData.buf[5]);
+                estCurve = FendtEstCurve + 32128;
+            }
       
-//**Cutout CAN Message** 
- if (VBusReceiveData.len == 3 && VBusReceiveData.buf[2] == 0) steeringValveReady = 80;      // Fendt Stopped Steering So CAN Not Ready
+            //**Cutout CAN Message** 
+            if (VBusReceiveData.len == 3 && VBusReceiveData.buf[2] == 0) steeringValveReady = 80;      // Fendt Stopped Steering So CAN Not Ready
     
-}//End Brand == 3  
+        }//End Brand == 3  
 
- if (Brand == 4){
-  //**Current Wheel Angle & Valve State**
-  if (VBusReceiveData.id == 0x0CACAB13){        
-        estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
-        steeringValveReady = (VBusReceiveData.buf[2]); 
-  }
+        if (Brand == 4)
+        {
+            //**Current Wheel Angle & Valve State**
+            if (VBusReceiveData.id == 0x0CACAB13)
+            {        
+                estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
+                steeringValveReady = (VBusReceiveData.buf[2]); 
+            }
 
-//**Engage Message**
-  if (VBusReceiveData.id == 0x18EFAB27){
-    if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1){
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-   }
-  }    
+            //**Engage Message**
+            if (VBusReceiveData.id == 0x18EFAB27)
+            {
+                if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1)
+                {
+                    Time = millis();
+                    digitalWrite(engageLED,HIGH); 
+                    engageCAN = 1;
+                    relayTime = ((millis() + 1000));
+                }
+            }    
    
-}//End Brand == 4  
-if (Brand == 5){
-//**Current Wheel Angle**
- if (VBusReceiveData.len == 8 && VBusReceiveData.buf[0] == 5 && VBusReceiveData.buf[1] == 10){
-      FendtEstCurve = (((int8_t)VBusReceiveData.buf[4] << 8) + VBusReceiveData.buf[5]);
-      estCurve = FendtEstCurve + 32128;
-      }
+        }//End Brand == 4  
+
+        if (Brand == 5)
+        {
+            //**Current Wheel Angle**
+             if (VBusReceiveData.len == 8 && VBusReceiveData.buf[0] == 5 && VBusReceiveData.buf[1] == 10)
+             {
+                  FendtEstCurve = (((int8_t)VBusReceiveData.buf[4] << 8) + VBusReceiveData.buf[5]);
+                  estCurve = FendtEstCurve + 32128;
+             }
       
-//**Cutout CAN Message** 
- if (VBusReceiveData.len == 3 && VBusReceiveData.buf[2] == 0) steeringValveReady = 80;      // Fendt Stopped Steering So CAN Not Ready
+            //**Cutout CAN Message** 
+             if (VBusReceiveData.len == 3 && VBusReceiveData.buf[2] == 0) steeringValveReady = 80;      // Fendt Stopped Steering So CAN Not Ready
     
-}//End Brand == 5 
+        }//End Brand == 5 
 
-if (Brand == 6){
-  //**Current Wheel Angle & Valve State**
-  if (VBusReceiveData.id == 0x0CACF013){        
-        estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
-        steeringValveReady = (VBusReceiveData.buf[2]); 
-  } 
+        if (Brand == 6)
+        {
+          //**Current Wheel Angle & Valve State**
+          if (VBusReceiveData.id == 0x0CACF013)
+          {        
+                estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
+                steeringValveReady = (VBusReceiveData.buf[2]); 
+          } 
    
-}//End Brand == 6  
+        }//End Brand == 6  
 
- if (Brand == 7){
-  //**Current Wheel Angle & Valve State**
-  if (VBusReceiveData.id == 0x0CAC1C13){        
-        steerAngleActual = float(int16_t(VBusReceiveData.buf[1] << 8| VBusReceiveData.buf[0])) / 100; 
-        steeringValveReady = (VBusReceiveData.buf[2]);
-        pwmDisplay = (VBusReceiveData.buf[3]);
-        pressureReading = (VBusReceiveData.buf[4]);
-        currentReading = (VBusReceiveData.buf[5]);
-  }
+        if (Brand == 7)
+        {
+              //**Current Wheel Angle & Valve State**
+              if (VBusReceiveData.id == 0x0CAC1C13)
+              {        
+                    steerAngleActual = float(int16_t(VBusReceiveData.buf[1] << 8| VBusReceiveData.buf[0])) / 100; 
+                    steeringValveReady = (VBusReceiveData.buf[2]);
+                    pwmDisplay = (VBusReceiveData.buf[3]);
+                    pressureReading = (VBusReceiveData.buf[4]);
+                    currentReading = (VBusReceiveData.buf[5]);
+              }
         
-}//End Brand == 7 
+        }//End Brand == 7 
 
-if (ShowCANData == 1){
-    Serial.print(Time);
-    Serial.print(", V-Bus"); 
-    Serial.print(", MB: "); Serial.print(VBusReceiveData.mb);
-    Serial.print(", ID: 0x"); Serial.print(VBusReceiveData.id, HEX );
-    Serial.print(", EXT: "); Serial.print(VBusReceiveData.flags.extended );
-    Serial.print(", LEN: "); Serial.print(VBusReceiveData.len);
-    Serial.print(", DATA: ");
-    for ( uint8_t i = 0; i < 8; i++ ) {
-      Serial.print(VBusReceiveData.buf[i]); Serial.print(", ");
-    }
+        if (ShowCANData == 1)
+        {
+            Serial.print(Time);
+            Serial.print(", V-Bus"); 
+            Serial.print(", MB: "); Serial.print(VBusReceiveData.mb);
+            Serial.print(", ID: 0x"); Serial.print(VBusReceiveData.id, HEX );
+            Serial.print(", EXT: "); Serial.print(VBusReceiveData.flags.extended );
+            Serial.print(", LEN: "); Serial.print(VBusReceiveData.len);
+            Serial.print(", DATA: ");
+            for ( uint8_t i = 0; i < 8; i++ ) 
+            {
+              Serial.print(VBusReceiveData.buf[i]); Serial.print(", ");
+            }
   
-    Serial.println("");
-}//End Show Data
+            Serial.println("");
+        }//End Show Data
 
- }//End if message 
+    }//End if message 
 }//End Receive V-Bus Void
 
 
 //---Receive ISO_Bus message
-void ISO_Receive(){
+void ISO_Receive()
+{
     CAN_message_t ISOBusReceiveData;
-if (ISO_Bus.read(ISOBusReceiveData)) { 
-  //Put code here to sort a message out from ISO-Bus if needed 
+    if (ISO_Bus.read(ISOBusReceiveData)) 
+    { 
+      //Put code here to sort a message out from ISO-Bus if needed 
   
-  //**Work Message**
-  if (ISOBusReceiveData.id == 0x0CFE45F0){
-    ISORearHitch = (ISOBusReceiveData.buf[0]); 
-    if(Brand != 7) pressureReading = ISORearHitch;
-    if (steerConfig.PressureSensor == 1 && ISORearHitch < steerConfig.PulseCountMax && Brand != 7) workCAN = 1; 
-    else workCAN = 0; 
-  }
+      //**Work Message**
+      if (ISOBusReceiveData.id == 0x0CFE45F0){
+        ISORearHitch = (ISOBusReceiveData.buf[0]); 
+        if(Brand != 7) pressureReading = ISORearHitch;
+        if (steerConfig.PressureSensor == 1 && ISORearHitch < steerConfig.PulseCountMax && Brand != 7) workCAN = 1; 
+        else workCAN = 0; 
+      }
   
-  if (Brand == 3){
-  if (ISOBusReceiveData.id == 0x18EF2CF0){   //**Fendt Engage Message**  
-    if ((ISOBusReceiveData.buf[0])== 0x0F && (ISOBusReceiveData.buf[1])== 0x60 && (ISOBusReceiveData.buf[2])== 0x01){   
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-    }
-   }
-  }
+      if (Brand == 3)
+      {
+          if (ISOBusReceiveData.id == 0x18EF2CF0)   //**Fendt Engage Message**  
+          {
+            if ((ISOBusReceiveData.buf[0])== 0x0F && (ISOBusReceiveData.buf[1])== 0x60 && (ISOBusReceiveData.buf[2])== 0x01){   
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+            }
+          }
+      }
 
-if (ShowCANData == 1){
-    Serial.print(Time);
-    Serial.print(", ISO-Bus"); 
-    Serial.print(", MB: "); Serial.print(ISOBusReceiveData.mb);
-    Serial.print(", ID: 0x"); Serial.print(ISOBusReceiveData.id, HEX );
-    Serial.print(", EXT: "); Serial.print(ISOBusReceiveData.flags.extended );
-    Serial.print(", LEN: "); Serial.print(ISOBusReceiveData.len);
-    Serial.print(", DATA: ");
-    for ( uint8_t i = 0; i < 8; i++ ) {
-      Serial.print(ISOBusReceiveData.buf[i]); Serial.print(", ");
+        if (ShowCANData == 1){
+            Serial.print(Time);
+            Serial.print(", ISO-Bus"); 
+            Serial.print(", MB: "); Serial.print(ISOBusReceiveData.mb);
+            Serial.print(", ID: 0x"); Serial.print(ISOBusReceiveData.id, HEX );
+            Serial.print(", EXT: "); Serial.print(ISOBusReceiveData.flags.extended );
+            Serial.print(", LEN: "); Serial.print(ISOBusReceiveData.len);
+            Serial.print(", DATA: ");
+            for ( uint8_t i = 0; i < 8; i++ ) 
+            {
+              Serial.print(ISOBusReceiveData.buf[i]); Serial.print(", ");
+            }
+  
+            Serial.println("");
+        }//End Show Data
+  
     }
-  
-    Serial.println("");
-}//End Show Data
-  
- }
 }
 
 //---Receive K_Bus message
-void K_Receive(){
+void K_Receive()
+{
     CAN_message_t KBusReceiveData;
-if (K_Bus.read(KBusReceiveData)) { 
-  //Put code here to sort a message out from K-Bus if needed 
+    if (K_Bus.read(KBusReceiveData)) { 
+      //Put code here to sort a message out from K-Bus if needed 
   
-  if (Brand == 3){
-    if (KBusReceiveData.buf[0]==0x15 && KBusReceiveData.buf[2]==0x06 && KBusReceiveData.buf[3]==0xCA){
+      if (Brand == 3)
+      {
+        if (KBusReceiveData.buf[0]==0x15 && KBusReceiveData.buf[2]==0x06 && KBusReceiveData.buf[3]==0xCA)
+        {
        
-      if(KBusReceiveData.buf[1]==0x8A && KBusReceiveData.buf[4]==0x80) steeringValveReady = 80;      // Fendt Auto Steer Active Pressed So CAN Not Ready
+          if(KBusReceiveData.buf[1]==0x8A && KBusReceiveData.buf[4]==0x80) steeringValveReady = 80;      // Fendt Auto Steer Active Pressed So CAN Not Ready
       
-      if (KBusReceiveData.buf[1]==0x88 && KBusReceiveData.buf[4]==0x80){     // Fendt Auto Steer Go   
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-   }
-  }                                                             
- }
+          if (KBusReceiveData.buf[1]==0x88 && KBusReceiveData.buf[4]==0x80) // Fendt Auto Steer Go   
+          {
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+          }
+        }                                                             
+      }
 
-  if (Brand == 5){
-  if (KBusReceiveData.id == 0xCFFD899){   //**FendtOne Engage Message**  
-    if ((KBusReceiveData.buf[3])== 0xF6){   
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-    }
-   }
-  }
-    //case test
-    if (Brand == 2){
-  if (KBusReceiveData.id == 0x14FF7706){   //**case IH Engage Message**  
-    if ((KBusReceiveData.buf[0])== 130 && (KBusReceiveData.buf[1])== 1){   
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-    }
-     if ((KBusReceiveData.buf[0])== 178 && (KBusReceiveData.buf[1])== 4){   
-      Time = millis();
-      digitalWrite(engageLED,HIGH); 
-      engageCAN = 1;
-      relayTime = ((millis() + 1000));
-    }
-   }
-     if (KBusReceiveData.id == 0x18FE4523){
-    KRearHitch = (KBusReceiveData.buf[0]); 
-    if(Brand != 2) pressureReading = KRearHitch;
-    if (steerConfig.PressureSensor == 1 && KRearHitch < steerConfig.PulseCountMax && Brand != 7) workCAN = 1; 
-    else workCAN = 0; 
-  }
-  }
+      if (Brand == 5)
+      {
+          if (KBusReceiveData.id == 0xCFFD899)   //**FendtOne Engage Message**  
+          {
+            if ((KBusReceiveData.buf[3])== 0xF6)
+            {   
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+            }
+          }
+      }
 
-if (ShowCANData == 1){
-    Serial.print(Time);
-    Serial.print(", K-Bus"); 
-    Serial.print(", MB: "); Serial.print(KBusReceiveData.mb);
-    Serial.print(", ID: 0x"); Serial.print(KBusReceiveData.id, HEX );
-    Serial.print(", EXT: "); Serial.print(KBusReceiveData.flags.extended );
-    Serial.print(", LEN: "); Serial.print(KBusReceiveData.len);
-    Serial.print(", DATA: ");
-    for ( uint8_t i = 0; i < 8; i++ ) {
-      Serial.print(KBusReceiveData.buf[i]); Serial.print(", ");
-    }
+      //CaseIH info from /buched Emmanuel
+      if (Brand == 2)
+      {
+          if (KBusReceiveData.id == 0x14FF7706)   //**case IH Engage Message**  
+          {
+            if ((KBusReceiveData.buf[0])== 130 && (KBusReceiveData.buf[1])== 1)
+            {   
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+            }
+
+            if ((KBusReceiveData.buf[0])== 178 && (KBusReceiveData.buf[1])== 4)
+            {   
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+            }
+          }
+
+          if (KBusReceiveData.id == 0x18FE4523)
+          {
+            KBUSRearHitch = (KBusReceiveData.buf[0]); 
+            pressureReading = KBUSRearHitch;
+            if (steerConfig.PressureSensor == 1 && KBUSRearHitch < steerConfig.PulseCountMax) workCAN = 1; 
+            else workCAN = 0; 
+          }
+      }
+
+        if (ShowCANData == 1)
+        {
+            Serial.print(Time);
+            Serial.print(", K-Bus"); 
+            Serial.print(", MB: "); Serial.print(KBusReceiveData.mb);
+            Serial.print(", ID: 0x"); Serial.print(KBusReceiveData.id, HEX );
+            Serial.print(", EXT: "); Serial.print(KBusReceiveData.flags.extended );
+            Serial.print(", LEN: "); Serial.print(KBusReceiveData.len);
+            Serial.print(", DATA: ");
+            for ( uint8_t i = 0; i < 8; i++ ) 
+            {
+              Serial.print(KBusReceiveData.buf[i]); Serial.print(", ");
+            }
   
-    Serial.println("");
-}//End Show Data
+            Serial.println("");
+        }//End Show Data
    
- }
+    }
 }
 
 //Fendt K-Bus Buttons
