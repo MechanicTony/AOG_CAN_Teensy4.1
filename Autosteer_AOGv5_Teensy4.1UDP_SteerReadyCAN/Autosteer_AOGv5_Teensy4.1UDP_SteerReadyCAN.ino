@@ -148,14 +148,14 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> V_Bus;    //Steering Valve Bus
 uint8_t Brand = 1;      //Variable to set brand via serial monitor.
 uint8_t gpsMode = 1;    //Variable to set GPS mode via serial monitor.
 
-uint32_t Time;          //Time Arduino has been running
-uint32_t relayTime;     //Time to keep "Button Pressed" from CAN Message
-boolean engageCAN = 0;  //Variable for Engage from CAN
-boolean workCAN = 0;    //Variable for Workswitch from CAN
-uint8_t ISORearHitch = 250;   //Variable for hitch height from ISOBUS (0-250 *0.4 = 0-100%)
-uint8_t KRearHitch = 250;   //Variable for hitch height from KBUS (0-250 *0.4 = 0-100%)
-boolean Service = 0;    //Variable for Danfoss Service Tool Mode
-boolean ShowCANData = 0;    //Variable for Showing CAN Data
+uint32_t Time;                  //Time Arduino has been running
+uint32_t relayTime;             //Time to keep "Button Pressed" from CAN Message
+boolean engageCAN = 0;          //Variable for Engage from CAN
+boolean workCAN = 0;            //Variable for Workswitch from CAN
+uint8_t ISORearHitch = 250;     //Variable for hitch height from ISOBUS (0-250 *0.4 = 0-100%)
+uint8_t KBUSRearHitch = 250;    //Variable for hitch height from KBUS (0-250 *0.4 = 0-100%) - CaseIH tractor bus
+boolean Service = 0;            //Variable for Danfoss Service Tool Mode
+boolean ShowCANData = 0;        //Variable for Showing CAN Data
 
 boolean goDown = false, endDown = false , bitState = false, bitStateOld = false;  //CAN Hitch Control
 byte hydLift = 0;
@@ -213,7 +213,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   float yaw = 0;
 
   //Swap BNO08x roll & pitch?
-  const bool swapRollPitch = false;
+  const bool swapRollPitch = true;
 
   // booleans to see if we are using CMPS or BNO08x
   bool useCMPS = false;
