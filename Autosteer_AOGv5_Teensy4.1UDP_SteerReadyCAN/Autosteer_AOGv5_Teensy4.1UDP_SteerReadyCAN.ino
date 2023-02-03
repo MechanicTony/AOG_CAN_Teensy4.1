@@ -53,6 +53,8 @@
 
 //----------------------------------------------------------
 
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.01.2023");
+
   ////////////////// User Settings /////////////////////////  
 
   //How many degrees before decreasing Max PWM
@@ -242,7 +244,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint8_t helloCounter=0;
   
   //Heart beat hello AgIO - v5.6
-  uint8_t helloFromIMU[] = { 128, 129, 121, 121, 1, 1, 71 };
+  uint8_t helloFromIMU[] = { 128, 129, 121, 121, 5, 0, 0, 0, 0, 0, 71 };
   uint8_t helloFromAutoSteer[] = { 128, 129, 126, 126, 5, 0, 0, 0, 0, 0, 71 };
   int16_t helloSteerPosition = 0;
     
@@ -519,7 +521,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
     //----Teensy 4.1 CANBus--End---------------------
 
-      Serial.print("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.01.2023");
+      Serial.print(inoVersion);
       Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
       Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 /*
@@ -802,8 +804,8 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
 void udpSteerRecv()
 {
-  
-Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
+  IPAddress src_ip = Udp.remoteIP();
+  Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
 
   if (udpData[0] == 0x80 && udpData[1] == 0x81 && udpData[2] == 0x7F) //Data
   {
@@ -1058,8 +1060,8 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
      if (udpData[4] == 3 && udpData[5] == 202 && udpData[6] == 202)
      {
       //hello from AgIO
-      uint8_t scanReply[] = { 128, 129, 126, 203, 4,
-      networkAddress.ipOne, networkAddress.ipTwo, networkAddress.ipThree, 126, 23 };
+      uint8_t scanReply[] = { 128, 129, 126, 203, 7,
+      ip[0], ip[1], ip[2], 126, src_ip[0], src_ip[1], src_ip[2], 23 };
 
       //checksum
       int16_t CK_A = 0;
@@ -1076,6 +1078,39 @@ Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
        Udp.beginPacket(ipDest, portDest);
        Udp.write(scanReply, sizeof(scanReply));
        Udp.endPacket();
+
+       Serial.print("\r\nAdapter IP: ");
+       Serial.print(src_ip[0]); Serial.print(" . ");
+       Serial.print(src_ip[1]); Serial.print(" . ");
+       Serial.print(src_ip[2]); Serial.print(" . ");
+       Serial.print(src_ip[3]);
+
+       Serial.print("\r\nModule  IP: ");
+       Serial.print(ip[0]); Serial.print(" . ");
+       Serial.print(ip[1]); Serial.print(" . ");
+       Serial.print(ip[2]); Serial.print(" . ");
+       Serial.print(ip[3]); Serial.println();
+
+       Serial.println(inoVersion); Serial.println();
+
+       if (Brand == 0) Serial.println("Brand = Claas (Set Via Service Tool)");
+       else if (Brand == 1) Serial.println("Brand = Valtra / Massey (Set Via Service Tool)");
+       else if (Brand == 2) Serial.println("Brand = CaseIH / New Holland (Set Via Service Tool)");
+       else if (Brand == 3) Serial.println("Brand = Fendt SCR,S4,Gen6 (Set Via Service Tool)");
+       else if (Brand == 4) Serial.println("Brand = JCB (Set Via Service Tool)");
+       else if (Brand == 5) Serial.println("Brand = FendtOne (Set Via Service Tool)");
+       else if (Brand == 6) Serial.println("Brand = Lindner (Set Via Service Tool)");
+       else if (Brand == 7) Serial.println("Brand = AgOpenGPS (Set Via Service Tool)");
+       else Serial.println("No Tractor Brand Set, Set Via Service Tool");
+
+       Serial.println("\r\nGPS Mode:");
+       if (gpsMode == 1) Serial.println("GPS Forwarding @ 115200 (Set Via Service Tool)");
+       else if (gpsMode == 2) Serial.println("GPS Forwarding @ 460800 (Set Via Service Tool)");
+       else if (gpsMode == 3) Serial.println("Panda Mode @ 115200 (Set Via Service Tool)");
+       else if (gpsMode == 4) Serial.println("Panda Mode @ 460800 (Set Via Service Tool)");
+       else Serial.println("No GPS mode selected - Set Via Service Tool");
+       Serial.println(" --------- ");
+
       }
      }//end 202
     
