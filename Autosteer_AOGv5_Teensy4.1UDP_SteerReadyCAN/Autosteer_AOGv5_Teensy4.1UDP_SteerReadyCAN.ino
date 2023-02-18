@@ -70,7 +70,7 @@ String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.01.2023");
   /////////////////////////////////////////////
 
   // if not in eeprom, overwrite 
-  #define EEP_Ident 0x5421
+  #define EEP_Ident 0x5422
 
   //   ***********  Motor drive connections  **************888
   //Connect ground only for cytron, Connect Ground and +5v for IBT2
@@ -214,8 +214,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   float pitch = 0;
   float yaw = 0;
 
-  //Swap BNO08x roll & pitch?
-  const bool swapRollPitch = true;
+  //Swap BNO08x roll & pitch? - Note this is now sent from AgOpen
 
   // booleans to see if we are using CMPS or BNO08x
   bool useCMPS = false;
@@ -326,6 +325,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       uint8_t CurrentSensor = 0;
       uint8_t PulseCountMax = 5; 
       uint8_t IsDanfoss = 0; 
+      uint8_t IsUseY_Axis = 1;     //0 = use X Axis, 1 = use Y axis
    };  Setup steerConfig;          //9 bytes
 
     //Variables for config - 0 is false - Machine Config
@@ -1023,7 +1023,8 @@ void udpSteerRecv()
       if (bitRead(sett, 0)) steerConfig.IsDanfoss = 1; else steerConfig.IsDanfoss = 0;
       if (bitRead(sett, 1)) steerConfig.PressureSensor = 1; else steerConfig.PressureSensor = 0;
       if (bitRead(sett, 2)) steerConfig.CurrentSensor = 1; else steerConfig.CurrentSensor = 0;
-      
+      if (bitRead(sett, 3)) steerConfig.IsUseY_Axis = 1; else steerConfig.IsUseY_Axis = 0;
+
       //crc
       //udpData[13];        
        

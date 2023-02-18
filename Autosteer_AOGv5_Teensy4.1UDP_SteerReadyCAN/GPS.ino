@@ -139,7 +139,7 @@ void Read_IMU()
             float t1 = +1.0 - 2.0 * (dqx * dqx + ysqr);
             //            roll = atan2(t0, t1) * RAD_TO_DEG_X_10;
 
-            if (swapRollPitch)
+            if (steerConfig.IsUseY_Axis)
             {
                 roll = asin(t2) * RAD_TO_DEG_X_10;
                 pitch = atan2(t0, t1) * RAD_TO_DEG_X_10;
