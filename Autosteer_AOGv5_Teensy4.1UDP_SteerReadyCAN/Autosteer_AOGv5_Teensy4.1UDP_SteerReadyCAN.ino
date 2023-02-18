@@ -740,7 +740,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     } //end of main timed loop
 
     //This runs continuously, outside of the timed loop, keeps checking for new udpData, turn sense, CAN data etc
-    delay(1); 
+    //delay(1); 
 
     //--CAN--Start--
       VBus_Receive();
