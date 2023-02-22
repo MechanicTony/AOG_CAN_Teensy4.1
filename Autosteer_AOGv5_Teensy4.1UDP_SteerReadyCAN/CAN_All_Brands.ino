@@ -569,6 +569,14 @@ void K_Receive()
               engageCAN = 1;
               relayTime = ((millis() + 1000));
             }
+            
+            if ((KBusReceiveData.buf[0])== 202 && (KBusReceiveData.buf[1])== 0 && (KBusReceiveData.buf[5])== 193)
+            {   
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+            }
           }
 
           if (KBusReceiveData.id == 0x18FE4523)
