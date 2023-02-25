@@ -22,31 +22,39 @@ if (Brand == 0){
   V_Bus.setFIFOFilter(0, 0x0CAC1E13, EXT);  //Claas Curve Data & Valve State Message
   V_Bus.setFIFOFilter(1, 0x18EF1CD2, EXT);  //Claas Engage Message
   V_Bus.setFIFOFilter(2, 0x1CFFE6D2, EXT);  //Claas Work Message (CEBIS Screen MR Models)
+  CANBUS_ModuleID = 0x1E;
   }
 if (Brand == 1){
   V_Bus.setFIFOFilter(0, 0x0CAC1C13, EXT);  //Valtra Curve Data & Valve State Message
   V_Bus.setFIFOFilter(1, 0x18EF1C32, EXT);  //Valtra Engage Message
+  CANBUS_ModuleID = 0x1C;
   }  
 if (Brand == 2){
   V_Bus.setFIFOFilter(0, 0x0CACAA08, EXT);  //CaseIH Curve Data & Valve State Message
   V_Bus.setFIFOUserFilter(1, 0x0CEFAA08, 0x0CEF08AA, 0x0000FF00, EXT);
+  CANBUS_ModuleID = 0xAA;
   }   
 if (Brand == 3){
   V_Bus.setFIFOFilter(0, 0x0CEF2CF0, EXT);  //Fendt Curve Data & Valve State Message
+  CANBUS_ModuleID = 0x2C;
   }   
 if (Brand == 4){
   V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT);  //JCB Curve Data & Valve State Message
   V_Bus.setFIFOFilter(1, 0x18EFAB27, EXT);  //JCB engage message
+  CANBUS_ModuleID = 0xAB;
   }
 if (Brand == 5){
   V_Bus.setFIFOFilter(0, 0x0CEF2CF0, EXT);  //FendtONE Curve Data & Valve State Message
+  CANBUS_ModuleID = 0x2C;
   }   
 if (Brand == 6){
   V_Bus.setFIFOFilter(0, 0x0CACF013, EXT);  //Lindner Curve Data & Valve State Message
+  CANBUS_ModuleID = 0xF0;
   }
 if (Brand == 7){
   V_Bus.setFIFOFilter(0, 0x0CAC1C13, EXT);  //AgOpenGPS Curve Data & Valve State Message
   V_Bus.setFIFOFilter(1, 0x19EF1C13, EXT);  //AgOpenGPS error message
+  CANBUS_ModuleID = 0x1C;
   }   
   
 // Claim V_Bus Address 

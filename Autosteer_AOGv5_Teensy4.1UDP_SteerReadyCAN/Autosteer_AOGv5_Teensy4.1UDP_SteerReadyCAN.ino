@@ -147,8 +147,9 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> V_Bus;    //Steering Valve Bus
 #define ledPin 5        //Option for LED, CAN Valve Ready To Steer.
 #define engageLED 24    //Option for LED, to see if Engage message is recived.
 
-uint8_t Brand = 1;      //Variable to set brand via serial monitor.
-uint8_t gpsMode = 1;    //Variable to set GPS mode via serial monitor.
+uint8_t Brand = 1;              //Variable to set brand via serial monitor.
+uint8_t gpsMode = 1;            //Variable to set GPS mode via serial monitor.
+uint8_t CANBUS_ModuleID = 0x1C; //Used for the Module CAN ID
 
 uint32_t Time;                  //Time Arduino has been running
 uint32_t relayTime;             //Time to keep "Button Pressed" from CAN Message
@@ -213,6 +214,10 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   float roll = 0;
   float pitch = 0;
   float yaw = 0;
+
+  //GPS Data
+  double pivotLat, pivotLon, fixHeading, pivotAltitude;
+  bool sendGPStoISOBUS = true;
 
   //Swap BNO08x roll & pitch? - Note this is now sent from AgOpen
 
@@ -1038,6 +1043,32 @@ void udpSteerRecv()
       pgn=dataLength=0; 
        
     }//end FB
+
+    else if (udpData[3] == 0xD0)  //Corrected GPS Data
+    {
+
+    uint32_t encodedAngle;
+    uint16_t encodedHeading;
+
+    encodedAngle = ((uint32_t)(udpData[5] | udpData[6] << 8 | udpData[7] << 16 | udpData[8] << 24));
+    pivotLat = (((double)encodedAngle * 0.0000001) - 210);
+    Serial.print(pivotLat, 7);
+
+    Serial.print("  ");
+
+    encodedAngle = ((uint32_t)(udpData[9] | udpData[10] << 8 | udpData[11] << 16 | udpData[12] << 24));
+    pivotLon = (((double)encodedAngle * 0.0000001) - 210);
+    Serial.print(pivotLon, 7);
+
+    Serial.print("  ");
+
+    encodedHeading = ((uint16_t)(udpData[13] | udpData[14] << 8));
+    fixHeading = ((double)encodedHeading / 128);
+    Serial.println(fixHeading, 1);
+
+    if(sendGPStoISOBUS) sendISOBUS_65267_65256();
+
+    }//end D0
 
     else if (udpData[3] == 201)
     {
