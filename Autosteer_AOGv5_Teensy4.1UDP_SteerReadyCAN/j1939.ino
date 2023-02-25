@@ -11,7 +11,7 @@ void j1939_decode(long ID, unsigned long* PGN, byte* priority, byte* src_addr, b
 
 	*priority = (int)((ID & 0x1C000000) >> 26);
 
-	*PGN = ID & 0x00FFFF00;
+	*PGN = ID & 0x03FFFF00;		//Tony Note: Changed this from 0x00FFFF00 to decode PGN 129029, it now gets the full 18bit PGN
 	*PGN = *PGN >> 8;
 
 	ID = ID & 0x000000FF;
@@ -29,7 +29,7 @@ long j1939_encode(unsigned long pgn, byte priority, byte src_addr, byte dest_add
 {
 
 	long id;
-	id = (priority & 0x07) << 26; //three bits only
+	id = (long)(priority & 0x07) << 26; //three bits only	- Tony Note: Added long cast on priority others Arduino drops bits when shifting bits 26 left 
 	/* if a peer to peer message, encode dest_addr */
 	if ((pgn > 0 && pgn <= 0xEFFF) ||
 		(pgn > 0x10000 && pgn <= 0x1efff)) {
