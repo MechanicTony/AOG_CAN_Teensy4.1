@@ -86,17 +86,6 @@ delay(500);
   ISO_Bus.begin();
   ISO_Bus.setBaudRate(250000);
   ISO_Bus.enableFIFO();
-  ISO_Bus.setFIFOFilter(REJECT_ALL);
-//Put filters into here to let them through (All blocked by above line)
-  ISO_Bus.setFIFOFilter(0,0x0CFE45F0, EXT);  //ISOBUS Rear Hitch Infomation
-  
-if (Brand == 3){
-  ISO_Bus.setFIFOFilter(1,0x18EF2CF0, EXT);  //Fendt Engage Message
-  } 
-
-if (Brand == 5){
-  ISO_Bus.setFIFOFilter(1,0x18EF2CF0, EXT);  //Fendt Engage Message
-  }  
 
 if (Brand >= 0 && Brand <= 7){
   CAN_message_t msgISO;
@@ -477,10 +466,19 @@ void ISO_Receive()
     CAN_message_t ISOBusReceiveData;
     if (ISO_Bus.read(ISOBusReceiveData)) 
     { 
+      Time = millis();
       //Put code here to sort a message out from ISO-Bus if needed 
   
+      unsigned long PGN;
+      byte priority;
+      byte srcaddr;
+      byte destaddr;
+
+      j1939_decode(ISOBusReceiveData.id, &PGN, &priority, &srcaddr, &destaddr);
+
       //**Work Message**
-      if (ISOBusReceiveData.id == 0x0CFE45F0){
+      if (PGN == 65093) //Rear hitch data
+      {
         ISORearHitch = (ISOBusReceiveData.buf[0]); 
         if(Brand != 7) pressureReading = ISORearHitch;
         if (steerConfig.PressureSensor == 1 && ISORearHitch < steerConfig.PulseCountMax && Brand != 7) workCAN = 1; 
@@ -492,7 +490,6 @@ void ISO_Receive()
           if (ISOBusReceiveData.id == 0x18EF2CF0)   //**Fendt Engage Message**  
           {
             if ((ISOBusReceiveData.buf[0])== 0x0F && (ISOBusReceiveData.buf[1])== 0x60 && (ISOBusReceiveData.buf[2])== 0x01){   
-              Time = millis();
               digitalWrite(engageLED,HIGH); 
               engageCAN = 1;
               relayTime = ((millis() + 1000));
@@ -505,6 +502,10 @@ void ISO_Receive()
             Serial.print(", ISO-Bus"); 
             Serial.print(", MB: "); Serial.print(ISOBusReceiveData.mb);
             Serial.print(", ID: 0x"); Serial.print(ISOBusReceiveData.id, HEX );
+            Serial.print(", PGN: "); Serial.print(PGN);
+            Serial.print(", Priority: "); Serial.print(priority);
+            Serial.print(", SA: "); Serial.print(srcaddr);
+            Serial.print(", DA: "); Serial.print(destaddr);
             Serial.print(", EXT: "); Serial.print(ISOBusReceiveData.flags.extended );
             Serial.print(", LEN: "); Serial.print(ISOBusReceiveData.len);
             Serial.print(", DATA: ");
@@ -513,6 +514,12 @@ void ISO_Receive()
               Serial.print(ISOBusReceiveData.buf[i]); Serial.print(", ");
             }
   
+            if(PGN == 65093) Serial.print("= Rear Hitch Data");
+            else if (PGN == 65267) Serial.print("= GPS Vechile Pos");
+            else if (PGN == 65256) Serial.print("= GPS Vechile Heading/Speed");
+            else if (PGN == 65254) Serial.print("= GPS Time");
+            else if (PGN == 129029) Serial.print("= GPS Info (GGA)");
+
             Serial.println("");
         }//End Show Data
   
