@@ -1048,7 +1048,7 @@ void udpSteerRecv()
     {
 
     uint32_t encodedAngle;
-    uint16_t encodedHeading;
+    uint16_t encodedInt16;
 
     encodedAngle = ((uint32_t)(udpData[5] | udpData[6] << 8 | udpData[7] << 16 | udpData[8] << 24));
     pivotLat = (((double)encodedAngle * 0.0000001) - 210);
@@ -1062,9 +1062,15 @@ void udpSteerRecv()
 
     Serial.print("  ");
 
-    encodedHeading = ((uint16_t)(udpData[13] | udpData[14] << 8));
-    fixHeading = ((double)encodedHeading / 128);
-    Serial.println(fixHeading, 1);
+    encodedInt16 = ((uint16_t)(udpData[13] | udpData[14] << 8));
+    fixHeading = ((double)encodedInt16 / 128);
+    Serial.print(fixHeading, 1);
+
+    Serial.print("  ");
+
+    encodedInt16 = ((uint16_t)(udpData[15] | udpData[16] << 8));
+    pivotAltitude = ((double)encodedInt16 * 0.01);
+    Serial.println(pivotAltitude,2);
 
     if(sendGPStoISOBUS) sendISOBUS_65267_65256();
 

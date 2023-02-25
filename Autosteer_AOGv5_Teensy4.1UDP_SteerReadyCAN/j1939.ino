@@ -58,6 +58,6 @@ void sendISOBUS_65267_65256() {
 	msg.get_data()->uint16[0] = fixHeading * 128;			//Heading degress
 	msg.get_data()->uint16[1] = gpsSpeed * 256;				//Speed km/hr
 	msg.get_data()->uint16[2] = 200 * 128;					//Pitch zero
-	msg.get_data()->uint16[3] = (pivotAltitude + 2500) * 8;	//Altitude meters
+	msg.get_data()->uint16[3] = (pivotAltitude + 2500) * 8;	//Altitude meters - Only 12cm resolution ( pivotAltitude is 1cm resolution)
 	ISO_Bus.write(msg);
 }
