@@ -53,7 +53,7 @@
 
 //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 18.02.2023");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 26.02.2023");
 
   ////////////////// User Settings /////////////////////////  
 
@@ -348,7 +348,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   void setup()
   {    
     delay(500);                         //Small delay so serial can monitor start up
-    set_arm_clock(150000000);           //Set CPU speed to 150mhz
+    set_arm_clock(450000000);           //Set CPU speed to 450mhz
     Serial.print("CPU speed set to: ");
     Serial.println(F_CPU_ACTUAL);
 
@@ -1047,32 +1047,36 @@ void udpSteerRecv()
     else if (udpData[3] == 0xD0)  //Corrected GPS Data
     {
 
-    uint32_t encodedAngle;
-    uint16_t encodedInt16;
+        uint32_t encodedAngle;
+        uint16_t encodedInt16;
 
-    encodedAngle = ((uint32_t)(udpData[5] | udpData[6] << 8 | udpData[7] << 16 | udpData[8] << 24));
-    pivotLat = (((double)encodedAngle * 0.0000001) - 210);
-    Serial.print(pivotLat, 7);
+        encodedAngle = ((uint32_t)(udpData[5] | udpData[6] << 8 | udpData[7] << 16 | udpData[8] << 24));
+        pivotLat = (((double)encodedAngle * 0.0000001) - 210);
+        Serial.print(pivotLat, 7);
 
-    Serial.print("  ");
+        Serial.print("  ");
 
-    encodedAngle = ((uint32_t)(udpData[9] | udpData[10] << 8 | udpData[11] << 16 | udpData[12] << 24));
-    pivotLon = (((double)encodedAngle * 0.0000001) - 210);
-    Serial.print(pivotLon, 7);
+        encodedAngle = ((uint32_t)(udpData[9] | udpData[10] << 8 | udpData[11] << 16 | udpData[12] << 24));
+        pivotLon = (((double)encodedAngle * 0.0000001) - 210);
+        Serial.print(pivotLon, 7);
 
-    Serial.print("  ");
+        Serial.print("  ");
 
-    encodedInt16 = ((uint16_t)(udpData[13] | udpData[14] << 8));
-    fixHeading = ((double)encodedInt16 / 128);
-    Serial.print(fixHeading, 1);
+        encodedInt16 = ((uint16_t)(udpData[13] | udpData[14] << 8));
+        fixHeading = ((double)encodedInt16 / 128);
+        Serial.print(fixHeading, 1);
 
-    Serial.print("  ");
+        Serial.print("  ");
 
-    encodedInt16 = ((uint16_t)(udpData[15] | udpData[16] << 8));
-    pivotAltitude = ((double)encodedInt16 * 0.01);
-    Serial.println(pivotAltitude,2);
+        encodedInt16 = ((uint16_t)(udpData[15] | udpData[16] << 8));
+        pivotAltitude = ((double)encodedInt16 * 0.01);
+        Serial.println(pivotAltitude,2);
 
-    if(sendGPStoISOBUS) sendISOBUS_65267_65256();
+        if (sendGPStoISOBUS)
+        {
+            sendISOBUS_65267_65256();
+            sendISOBUS_65254_129029();
+        }
 
     }//end D0
 

@@ -514,7 +514,9 @@ void ISO_Receive()
               Serial.print(ISOBusReceiveData.buf[i]); Serial.print(", ");
             }
   
-            if(PGN == 65093) Serial.print("= Rear Hitch Data");
+            if (PGN == 44032) Serial.print("= Curvature Data");
+            else if(PGN == 65093) Serial.print("= Rear Hitch Data");
+            else if (PGN == 65096) Serial.print("= Wheel Speed, Direction, Distance");
             else if (PGN == 65267) Serial.print("= GPS Vechile Pos");
             else if (PGN == 65256) Serial.print("= GPS Vechile Heading/Speed");
             else if (PGN == 65254) Serial.print("= GPS Time");
