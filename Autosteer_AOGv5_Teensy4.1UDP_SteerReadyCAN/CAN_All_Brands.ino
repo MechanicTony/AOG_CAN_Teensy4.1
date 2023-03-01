@@ -130,7 +130,13 @@ if (Brand == 2){
   K_Bus.setFIFOFilter(1, 0x18FE4523, EXT);  //CaseIH Rear Hitch Infomation
   } 
   
-  delay (500); 
+  delay (300); 
+
+  for (int i = 0; i < 48; i++) //Fill the NMEA2000 PGN 129029 with 0xFF
+  {
+      N2K_129029_Data[i] = 0xFF;
+  }
+
 } //End CAN SETUP
 
 

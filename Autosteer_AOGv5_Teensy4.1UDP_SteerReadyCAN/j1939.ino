@@ -11,7 +11,7 @@ void j1939_decode(long ID, unsigned long* PGN, byte* priority, byte* src_addr, b
 
 	*priority = (int)((ID & 0x1C000000) >> 26);	//Bits 27,28,29
 
-	*PGN = ID & 0x01FFFF00;		//Tony Note: Changed this from 0x00FFFF00 to decode PGN 129029, it now gets the 17th bit of PGN (Bits 9-25, Bit 26 is not used)
+	*PGN = ID & 0x01FFFF00;	//Tony Note: Changed this from 0x00FFFF00 to decode PGN 129029, it now gets the 17th bit of the 18 bit PGN (Bits 9-25, Bit 26 is not used)
 	*PGN = *PGN >> 8;
 
 	ID = ID & 0x000000FF;	//Bits 1-8
@@ -42,10 +42,11 @@ long j1939_encode(unsigned long pgn, byte priority, byte src_addr, byte dest_add
 	return id;
 }
 
-void sendISOBUS_65267_65256() {
-	CANFrame msg;			//for generating gps messages
+void sendISOBUS_65267_65256() 
+{
+	CANFrame msg;
 	msg.set_extended(true);
-	msg.set_length(8);		//all our messages are going to be 8 bytes
+	msg.set_length(8);
 
 	//GPS position, pgn 65267, Pivot Lat/Lon
 	msg.set_id(j1939_encode(65267, 6, CANBUS_ModuleID, 255));
@@ -60,20 +61,218 @@ void sendISOBUS_65267_65256() {
 	msg.get_data()->uint16[2] = 200 * 128;					//Pitch zero
 	msg.get_data()->uint16[3] = (pivotAltitude + 2500) * 8;	//Altitude meters - Only 12cm resolution ( pivotAltitude is 1cm resolution)
 	ISO_Bus.write(msg);
+
 }
 
-void sendISOBUS_65254_129029() {
-	CANFrame msg1;			//for generating gps messages
+void sendISOBUS_65254() 
+{
+	CANFrame msg1;
 	msg1.set_extended(true);
-	msg1.set_length(8);		//all our messages are going to be 8 bytes
+	msg1.set_length(8);
 
 	//GPS time, pgn 65254
 	msg1.set_id(j1939_encode(65254, 6, CANBUS_ModuleID, 255));
 	msg1.get_data()->uint64 = 0xFFFFFFFFFFFFFFFF;
 	ISO_Bus.write(msg1);
 
-	//GPS Infomation (GGA kind of in NEMA 2000), pgn 129029
-	msg1.set_id(j1939_encode(129029, 6, CANBUS_ModuleID, 255));
-	msg1.get_data()->uint64 = 0xFFFFFFFFFFFFFFFF;
-	ISO_Bus.write(msg1);
+}
+
+void sendISOBUS_129029() 
+{
+	Update_N2K_129029_Buffer();
+
+	static int frameCount = 0;
+	uint8_t packetIdentifier;
+
+	CAN_message_t n2k_fastPackets;
+	n2k_fastPackets.flags.extended = true;
+	n2k_fastPackets.len = 8;
+
+	//GPS Data, NMEA 2000 pgn 129029
+	n2k_fastPackets.id = (j1939_encode(129029, 6, CANBUS_ModuleID, 255));
+
+	packetIdentifier = (frameCount << 5);
+
+	//1 of 7
+	n2k_fastPackets.buf[0] = packetIdentifier;
+	n2k_fastPackets.buf[1] = 48;						//Data length = 48 bytes, 7 CAN messages (6 @ 7 bytes plus 1 @ 6 bytes)
+	n2k_fastPackets.buf[2] = CANBUS_ModuleID;			//Start of PGN 129029 data, this is the SID
+	n2k_fastPackets.buf[3] = N2K_129029_Data[1];		//Days x2
+	n2k_fastPackets.buf[4] = N2K_129029_Data[2];
+	n2k_fastPackets.buf[5] = N2K_129029_Data[3];		//Seconds x4
+	n2k_fastPackets.buf[6] = N2K_129029_Data[4];
+	n2k_fastPackets.buf[7] = N2K_129029_Data[5];
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	//2 of 7
+	n2k_fastPackets.buf[0] = n2k_fastPackets.buf[0] + 1;
+	n2k_fastPackets.buf[1] = N2K_129029_Data[6];
+	n2k_fastPackets.buf[2] = N2K_129029_Data[7];		//Latitude x8
+	n2k_fastPackets.buf[3] = N2K_129029_Data[8];
+	n2k_fastPackets.buf[4] = N2K_129029_Data[9];
+	n2k_fastPackets.buf[5] = N2K_129029_Data[10];
+	n2k_fastPackets.buf[6] = N2K_129029_Data[11];
+	n2k_fastPackets.buf[7] = N2K_129029_Data[12];
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	//3 of 7
+	n2k_fastPackets.buf[0] = n2k_fastPackets.buf[0] + 1;
+	n2k_fastPackets.buf[1] = N2K_129029_Data[13];
+	n2k_fastPackets.buf[2] = N2K_129029_Data[14];
+	n2k_fastPackets.buf[3] = N2K_129029_Data[15];		//Longitude x8
+	n2k_fastPackets.buf[4] = N2K_129029_Data[16];
+	n2k_fastPackets.buf[5] = N2K_129029_Data[17];
+	n2k_fastPackets.buf[6] = N2K_129029_Data[18];
+	n2k_fastPackets.buf[7] = N2K_129029_Data[19];
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	//4 of 7
+	n2k_fastPackets.buf[0] = n2k_fastPackets.buf[0] + 1;
+	n2k_fastPackets.buf[1] = N2K_129029_Data[20];
+	n2k_fastPackets.buf[2] = N2K_129029_Data[21];
+	n2k_fastPackets.buf[3] = N2K_129029_Data[22];
+	n2k_fastPackets.buf[4] = N2K_129029_Data[23];;		//Altitude x8
+	n2k_fastPackets.buf[5] = N2K_129029_Data[24];
+	n2k_fastPackets.buf[6] = N2K_129029_Data[25];
+	n2k_fastPackets.buf[7] = N2K_129029_Data[26];
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	//5 of 7
+	n2k_fastPackets.buf[0] = n2k_fastPackets.buf[0] + 1;
+	n2k_fastPackets.buf[1] = N2K_129029_Data[27];
+	n2k_fastPackets.buf[2] = N2K_129029_Data[28];
+	n2k_fastPackets.buf[3] = N2K_129029_Data[29];
+	n2k_fastPackets.buf[4] = N2K_129029_Data[30];
+	n2k_fastPackets.buf[5] = N2K_129029_Data[31];		//GNSS type & Fix type
+	n2k_fastPackets.buf[6] = N2K_129029_Data[32];		//Integrity 2 bit, reserved 6 bits
+	n2k_fastPackets.buf[7] = N2K_129029_Data[33];		//Satellites
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	//6 of 7
+	n2k_fastPackets.buf[0] = n2k_fastPackets.buf[0] + 1;
+	n2k_fastPackets.buf[1] = N2K_129029_Data[34];		//HDOP x2
+	n2k_fastPackets.buf[2] = N2K_129029_Data[35];
+	n2k_fastPackets.buf[3] = N2K_129029_Data[36];		//PDOP x2
+	n2k_fastPackets.buf[4] = N2K_129029_Data[37];
+	n2k_fastPackets.buf[5] = N2K_129029_Data[38];;		//4 byte double, GeoidalSeparation
+	n2k_fastPackets.buf[6] = N2K_129029_Data[39];
+	n2k_fastPackets.buf[7] = N2K_129029_Data[40];
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	//7 of 7
+	n2k_fastPackets.buf[0] = n2k_fastPackets.buf[0] + 1;
+	n2k_fastPackets.buf[1] = N2K_129029_Data[41];
+	n2k_fastPackets.buf[2] = N2K_129029_Data[42];
+	n2k_fastPackets.buf[3] = N2K_129029_Data[43];		//2 byte, Ref station & ID
+	n2k_fastPackets.buf[4] = N2K_129029_Data[44];
+	n2k_fastPackets.buf[5] = N2K_129029_Data[45];		//2 byte, double corr age
+	n2k_fastPackets.buf[6] = N2K_129029_Data[46];
+	n2k_fastPackets.buf[7] = 0xFF;						//Spare
+
+	ISO_Bus.write(n2k_fastPackets);
+
+	if(frameCount++ > 7) frameCount = 0;	//We can only use 3 bits as the frame counter
+}
+
+void Update_N2K_129029_Buffer()
+{
+	byte tempDouble[8];
+	byte tempFloat[4];
+
+	//2 byte uint Days since 1970 (19345 days = 0x4B91)
+	N2K_129029_Data[1] = 0x91;
+	N2K_129029_Data[2] = 0x4B;
+
+	//4 byte double UTC seconds since midnight
+	utcTime = fakeUTCtime * 0.001;
+	memcpy(&tempFloat, &utcTime, 4);
+	N2K_129029_Data[3] = tempFloat[0];
+	N2K_129029_Data[4] = tempFloat[1];
+	N2K_129029_Data[5] = tempFloat[2];
+	N2K_129029_Data[6] = tempFloat[3];
+
+	//8 byte double Latitude
+	memcpy(&tempDouble, &pivotLat,8);
+	N2K_129029_Data[7] = tempDouble[0];
+	N2K_129029_Data[8] = tempDouble[1];
+	N2K_129029_Data[9] = tempDouble[2];
+	N2K_129029_Data[10] = tempDouble[3];
+	N2K_129029_Data[11] = tempDouble[4];
+	N2K_129029_Data[12] = tempDouble[5];
+	N2K_129029_Data[13] = tempDouble[6];
+	N2K_129029_Data[14] = tempDouble[7];
+
+	//8 byte double Longitude
+	memcpy(&tempDouble, &pivotLon, 8);
+	N2K_129029_Data[15] = tempDouble[0];
+	N2K_129029_Data[16] = tempDouble[1];
+	N2K_129029_Data[17] = tempDouble[2];
+	N2K_129029_Data[18] = tempDouble[3];
+	N2K_129029_Data[19] = tempDouble[4];
+	N2K_129029_Data[20] = tempDouble[5];
+	N2K_129029_Data[21] = tempDouble[6];
+	N2K_129029_Data[22] = tempDouble[7];
+
+	//8 byte double Altitude
+	memcpy(&tempDouble, &pivotAltitude, 8);
+	N2K_129029_Data[23] = tempDouble[0];
+	N2K_129029_Data[24] = tempDouble[1];
+	N2K_129029_Data[25] = tempDouble[2];
+	N2K_129029_Data[26] = tempDouble[3];
+	N2K_129029_Data[27] = tempDouble[4];
+	N2K_129029_Data[28] = tempDouble[5];
+	N2K_129029_Data[29] = tempDouble[6];
+	N2K_129029_Data[30] = tempDouble[7];
+
+	//Fix Type
+	//N2K_129029_Data[31] = 0;     Fix type direct copy from AgIO NMEA PGN
+
+	// Integrity 2 bit, reserved 6 bits
+	N2K_129029_Data[32] = 1 | 0xfc;  // Integrity 2 bit, reserved 6 bits
+
+	//Satellites
+	//N2K_129029_Data[33] = 0;		Sats direct copy from AgIO NMEA PGN
+
+	//HDOP 
+	//N2K_129029_Data[34];			HDOP direct copy from AgIO NMEA PGN
+	//N2K_129029_Data[35];
+
+	//PDOP - Just copy HDOP
+	N2K_129029_Data[36] = N2K_129029_Data[34];
+	N2K_129029_Data[37] = N2K_129029_Data[35];
+
+	//4 byte double, Geoidal Separation
+	N2K_129029_Data[38] = 0;
+	N2K_129029_Data[39] = 0;
+	N2K_129029_Data[40] = 0;
+	N2K_129029_Data[41] = 0;
+	
+	if (N2K_129029_Data[45] == 0 && N2K_129029_Data[46] == 0)
+	{
+		N2K_129029_Data[42] = 0xFF;
+		N2K_129029_Data[43] = 0xFF;
+		N2K_129029_Data[44] = 0xFF;
+		N2K_129029_Data[45] = 0xFF;
+		N2K_129029_Data[46] = 0xFF;
+	}
+
+	else
+	{
+		N2K_129029_Data[42] = 0x01;		//Ref station used
+
+		// Ref station type & ID (Type GPSGLONASS = 2, ID = 0) >>> ((int)ReferenceStationType) & 0x0f) | ReferenceSationID<<4
+		N2K_129029_Data[43] = 0x00;
+		N2K_129029_Data[44] = 0x02;
+
+		//N2K_129029_Data[45]			Corr Age direct copy from AgIO NMEA PGN
+		//N2K_129029_Data[46] 
+	}
+
+	N2K_129029_Data[47] = 0xFF;
 }

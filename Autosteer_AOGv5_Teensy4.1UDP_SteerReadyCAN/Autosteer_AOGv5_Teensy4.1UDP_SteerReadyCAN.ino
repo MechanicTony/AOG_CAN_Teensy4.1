@@ -128,7 +128,7 @@ elapsedMillis tempChecker;
   byte mac[] = { 0x00,0x00,0x56,0x00,0x00,0x7E };
   
   // Buffer For Receiving UDP Data
-  byte udpData[UDP_TX_PACKET_MAX_SIZE];  // Incomming Buffer
+  byte udpData[128];    // Incomming Buffer
   byte NtripData[512];   
 
   // An EthernetUDP instance to let us send and receive packets over UDP
@@ -216,8 +216,13 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   float yaw = 0;
 
   //GPS Data
-  double pivotLat, pivotLon, fixHeading, pivotAltitude;
   bool sendGPStoISOBUS = true;
+  double pivotLat, pivotLon, fixHeading, pivotAltitude;
+  float utcTime;
+
+  elapsedMillis fakeUTCtime;
+
+  uint8_t N2K_129029_Data[48];
 
   //Swap BNO08x roll & pitch? - Note this is now sent from AgOpen
 
@@ -790,7 +795,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
         int packetSize = Udp.parsePacket();
         if (packetSize) {
           //Serial.println("UDP Data Avalible"); 
-          udpSteerRecv();
+          udpSteerRecv(packetSize);
         }
 
         if (encEnable)
@@ -807,10 +812,11 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
 //********************************************************************************
 
-void udpSteerRecv()
+void udpSteerRecv(int sizeToRead)
 {
+  if (sizeToRead > 128) sizeToRead = 128;
   IPAddress src_ip = Udp.remoteIP();
-  Udp.read(udpData, UDP_TX_PACKET_MAX_SIZE);
+  Udp.read(udpData, sizeToRead);
 
   if (udpData[0] == 0x80 && udpData[1] == 0x81 && udpData[2] == 0x7F) //Data
   {
@@ -1052,31 +1058,28 @@ void udpSteerRecv()
 
         encodedAngle = ((uint32_t)(udpData[5] | udpData[6] << 8 | udpData[7] << 16 | udpData[8] << 24));
         pivotLat = (((double)encodedAngle * 0.0000001) - 210);
-        Serial.print(pivotLat, 7);
-
-        Serial.print("  ");
 
         encodedAngle = ((uint32_t)(udpData[9] | udpData[10] << 8 | udpData[11] << 16 | udpData[12] << 24));
         pivotLon = (((double)encodedAngle * 0.0000001) - 210);
-        Serial.print(pivotLon, 7);
-
-        Serial.print("  ");
 
         encodedInt16 = ((uint16_t)(udpData[13] | udpData[14] << 8));
         fixHeading = ((double)encodedInt16 / 128);
-        Serial.print(fixHeading, 1);
-
-        Serial.print("  ");
 
         encodedInt16 = ((uint16_t)(udpData[15] | udpData[16] << 8));
         pivotAltitude = ((double)encodedInt16 * 0.01);
-        Serial.println(pivotAltitude,2);
+
+        static int GPS_5hz = 0;
 
         if (sendGPStoISOBUS)
         {
-            sendISOBUS_65267_65256();
-            sendISOBUS_65254_129029();
+            if (GPS_5hz > 4)
+            {
+                GPS_5hz = 0;
+                sendISOBUS_65267_65256();
+            }
         }
+
+        GPS_5hz++;
 
     }//end D0
 
@@ -1157,6 +1160,40 @@ void udpSteerRecv()
      }//end 202
     
   } //end if 80 81 7F
+
+  else if (udpData[0] == 0x80 && udpData[1] == 0x81 && udpData[2] == 0x7C) //GPS from AgIO Data
+  {
+
+    if (udpData[3] == 0xD6)  //AgIO > AgOpenGPS NMEA PGN
+    {
+        N2K_129029_Data[31] = udpData[43];                      //Fix Type
+
+        uint16_t tempSats = (udpData[41] | udpData[42] << 8);
+        N2K_129029_Data[33] = (uint8_t)tempSats;                //Sat's
+
+        N2K_129029_Data[34] = udpData[44];                      //HDOP
+        N2K_129029_Data[35] = udpData[45];
+
+        N2K_129029_Data[46] = udpData[45];                      //Corr Age
+        N2K_129029_Data[47] = udpData[46];
+
+        static int GPS_1hz = 0;
+
+        if (sendGPStoISOBUS)
+        {
+            if (GPS_1hz > 9)
+            {
+                GPS_1hz = 0;
+                sendISOBUS_129029();
+            }
+        }
+
+        GPS_1hz++;
+
+    }//end D6
+
+  }//end if 80 81 7C
+
 } //end udp callback
 
 
