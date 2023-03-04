@@ -39,42 +39,40 @@ void Read_IMU()
         isTriggered = false;
         int16_t temp = 0;
 
-        if (useCMPS)
-        {
-            Wire.beginTransmission(CMPS14_ADDRESS);
-            Wire.write(0x02);
-            Wire.endTransmission();
-
-            Wire.requestFrom(CMPS14_ADDRESS, 2);
-            while (Wire.available() < 2);
-
-            //the heading x10
-            data[6] = Wire.read();
-            data[5] = Wire.read();
-
-            //roll
-            Wire.beginTransmission(CMPS14_ADDRESS);
-            Wire.write(0x1C);
-            Wire.endTransmission();
-
-            Wire.requestFrom(CMPS14_ADDRESS, 2);
-            while (Wire.available() < 2);
-
-            data[8] = Wire.read();
-            data[7] = Wire.read();
-        }
-
-        else if (useBNO08x)
+        if (useBNO08x)
         {
             //the heading x10
             temp = (int16_t)yaw;
-            data[5] = (uint8_t)yaw;
+            data[5] = (uint8_t)temp;
             data[6] = temp >> 8;
 
             //the roll x10
             temp = (int16_t)roll;
             data[7] = (uint8_t)temp;
             data[8] = temp >> 8;
+        }
+
+        else if (useBNO08xRVC)
+        {
+            //the heading x10
+            temp = (int16_t)bnoData.yawX10;
+            data[5] = (uint8_t)temp;
+            data[6] = temp >> 8;
+
+            if (steerConfig.IsUseY_Axis)
+            {
+                //the roll x10
+                temp = (int16_t)bnoData.rollX10;
+                data[7] = (uint8_t)temp;
+                data[8] = temp >> 8;
+            }
+            else
+            {
+                //the roll x10
+                temp = (int16_t)bnoData.pitchX10;
+                data[7] = (uint8_t)temp;
+                data[8] = temp >> 8;
+            }
         }
 
         //checksum
@@ -87,10 +85,13 @@ void Read_IMU()
 
         data[dataSize - 1] = CK_A;
 
+        if (useBNO08x || useBNO08xRVC)
+        {
+            Udp.beginPacket(ipDestination, 9999);
+            Udp.write(data, dataSize);
+            Udp.endPacket();
+        }
         //off to AOG
-        Udp.beginPacket(ipDestination, 9999);
-        Udp.write(data, dataSize);
-        Udp.endPacket();
     }
   }
 
@@ -204,7 +205,7 @@ void Forward_Ntrip()
         //Serial.print("Ntrip Data ="); 
         //Serial.write(NtripData, sizeof(NtripData)); 
         //Serial.write(10);
-        Serial.println("Ntrip Forwarded");
+        //Serial.println("Ntrip Forwarded");
         GPS.write(NtripData, NtripSize); 
   }
 }

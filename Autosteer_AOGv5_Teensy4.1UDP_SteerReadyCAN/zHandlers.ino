@@ -60,11 +60,20 @@ void GGA_Handler() //Rec'd GGA
     // time of last DGPS update
     parser.getArg(12, ageDGPS);
 
-    if (useBNO08x || useCMPS)
+    bnoTimer = 0;
+    bnoTrigger = true;
+
+    if (useBNO08x)
     {
        imuHandler();          //Get IMU data ready
-       BuildNmea();           //Build & send data GPS data to AgIO (Both Dual & Single)
+       BuildNmea();           //Build & send data GPS data to AgIO
     }
+
+    else if (useBNO08xRVC)
+    {
+        BuildNmea();           //Build & send data GPS data to AgIO
+    }
+
     else
     {
         itoa(0, imuYawRate, 10);
@@ -79,42 +88,7 @@ void imuHandler()
 {
     int16_t temp = 0;
 
-    if (useCMPS)
-    {
-        //the heading x10
-        Wire.beginTransmission(CMPS14_ADDRESS);
-        Wire.write(0x1C);
-        Wire.endTransmission();
-
-        Wire.requestFrom(CMPS14_ADDRESS, 3);
-        while (Wire.available() < 3);
-
-        roll = int16_t(Wire.read() << 8 | Wire.read());
-
-        // the heading x10
-        Wire.beginTransmission(CMPS14_ADDRESS);
-        Wire.write(0x02);
-        Wire.endTransmission();
-
-        Wire.requestFrom(CMPS14_ADDRESS, 3);
-        while (Wire.available() < 3);
-
-        temp = Wire.read() << 8 | Wire.read();
-        itoa(temp, imuHeading, 10);
-
-        // 3rd byte pitch
-        int8_t pitch = Wire.read();
-        itoa(pitch, imuPitch, 10);
-
-        // the roll x10
-        temp = (int16_t)roll;
-        itoa(temp, imuRoll, 10);
-
-        // YawRate - 0 for now
-        itoa(0, imuYawRate, 10);
-    }
-
-    else if (useBNO08x)
+    if (useBNO08x)
     {
         //BNO is reading in its own timer    
         // Fill rest of Panda Sentence - Heading
@@ -131,6 +105,51 @@ void imuHandler()
 
         // YawRate - 0 for now
         itoa(0, imuYawRate, 10);
+    }
+
+    else if (useBNO08xRVC)
+    {
+        float angVel;
+
+        // Fill rest of Panda Sentence - Heading
+        itoa(bnoData.yawX10, imuHeading, 10);
+
+        if (steerConfig.IsUseY_Axis)
+        {
+            // the pitch x100
+            itoa(bnoData.pitchX10, imuPitch, 10);
+
+            // the roll x100
+            itoa(bnoData.rollX10, imuRoll, 10);
+        }
+        else
+        {
+            // the pitch x100
+            itoa(bnoData.rollX10, imuPitch, 10);
+
+            // the roll x100
+            itoa(bnoData.pitchX10, imuRoll, 10);
+        }
+
+        //Serial.print(rvc.angCounter);
+        //Serial.print(", ");
+        //Serial.print(bnoData.angVel);
+        //Serial.print(", ");
+        // YawRate
+        if (rvc.angCounter > 0)
+        {
+            angVel = ((float)bnoData.angVel) / (float)rvc.angCounter;
+            angVel *= 10.0;
+            rvc.angCounter = 0;
+            bnoData.angVel = (int16_t)angVel;
+        }
+        else
+        {
+            bnoData.angVel = 0;
+        }
+
+        itoa(bnoData.angVel, imuYawRate, 10);
+        bnoData.angVel = 0;
     }
 }
 

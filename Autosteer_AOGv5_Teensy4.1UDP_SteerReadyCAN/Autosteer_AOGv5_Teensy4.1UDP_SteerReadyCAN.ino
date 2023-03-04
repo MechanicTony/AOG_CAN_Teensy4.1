@@ -8,7 +8,7 @@
 
 //----------------------------------------------------------
 
-//Tony / @Commonrail Version 29.01.2023
+//Tony / @Commonrail Version 05.03.2023
 //30.06.2022  - Ryan / @RGM Added JCB CAN engage message
 //02.07.2022  - Added Claas headland from Ryan
 //            - Fix up pilot valve output for Ryan Claas wiring mod 
@@ -16,16 +16,18 @@
 //29.01.2023  - Add WAS mapping option to fix wheel angle to turning radius conversion
 //            - Add Danfoss PVED-CL setup options (Claas mods mainly)
 //            - Add CaseIH/New Holland engage from CAN options
+//05.03.2023  - Add GPS to ISOBUS option
+//            - Add RVC BNO08x option and remove CMPS14 option
 
 // GPS forwarding mode: (Serial Bynav etc)
 // - GPS to Serial3, Forward to AgIO via UDP
 // - Forward Ntrip from AgIO (Port 2233) to Serial3
-// - BNO08x/CMPS14 Data sent as IMU message (Not in Steering Message), sent 70ms after steering message from AgOpen.
+// - BNO08x Data sent as IMU message (Not in Steering Message), sent 70ms after steering message from AgOpen.
 
 // Panda Mode 
 // - GPS to Serial3, Forward to AgIO as Panda via UDP
 // - Forward Ntrip from AgIO (Port 2233) to Serial3
-// - BNO08x/CMPS14 Data sent with Panda data
+// - BNO08x Data sent with Panda data
 
 //This CAN setup is for CANBUS based steering controllers as below:
 //Danfoss PVED-CL & PVED-CLS (Claas, JCB, Massey Fergerson, CaseIH, New Holland, Valtra, Deutz, Lindner)
@@ -53,7 +55,7 @@
 
 //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 26.02.2023");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 05.03.2023");
 
   ////////////////// User Settings /////////////////////////  
 
@@ -226,9 +228,17 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
   //Swap BNO08x roll & pitch? - Note this is now sent from AgOpen
 
-  // booleans to see if we are using CMPS or BNO08x
-  bool useCMPS = false;
+  //Roomba Vac mode for BNO085 and data
+  #include "BNO_RVC.h"
+  BNO_rvc rvc = BNO_rvc();
+  BNO_rvcData bnoData;
+  elapsedMillis bnoTimer;
+  bool bnoTrigger = false;
+  HardwareSerial* SerialIMU = &Serial5;   //IMU BNO-085
+
+  // booleans to see what mode BNO08x
   bool useBNO08x = false;
+  bool useBNO08xRVC = false;
 
   // Address of CMPS14 shifted right one bit for arduino wire library
   #define CMPS14_ADDRESS 0x60
@@ -375,30 +385,13 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   /*    while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }*/
-  
-    //test if CMPS working
-    uint8_t error;
-    Wire.beginTransmission(CMPS14_ADDRESS);
-    error = Wire.endTransmission();
-    
-    if (error == 0)
-    {
-      Serial.println("Error = 0");
-      Serial.print("CMPS14 ADDRESs: 0x");
-      Serial.println(CMPS14_ADDRESS, HEX);
-      Serial.println("CMPS14 Ok.");
-      useCMPS = true;
-    }
-    else 
-    {
-      Serial.println("Error = 4");
-      Serial.println("CMPS not Connected or Found");
-      useCMPS = false;
-    }
 
-    // Check for BNO08x
-    if(!useCMPS)
-    {
+    SerialIMU->begin(115200);
+    rvc.begin(SerialIMU);
+
+    // Check for i2c BNO08x
+    uint8_t error;
+
       for(int16_t i = 0; i < nrBNO08xAdresses; i++)
       {
         bno08xAddress = bno08xAddresses[i];
@@ -429,17 +422,34 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           }
           else
           {
-            Serial.println("BNO080 not detected at given I2C address.");
+            Serial.println("BNO08x not detected at given I2C address.");
           }
         }
         else 
         {
           Serial.println("Error = 4");
-          Serial.println("BNO08X not Connected or Found"); 
+          Serial.println("i2c BNO08x not Connected or Found"); 
         }
         if (useBNO08x) break;
       }
-    }
+
+      if (!useBNO08x)
+      {
+          static elapsedMillis rvcBnoTimer = 0;
+          Serial.println("\r\nChecking for serial BNO08x");
+          while (rvcBnoTimer < 1000)
+          {
+              //check if new bnoData
+              if (rvc.read(&bnoData))
+              {
+                  useBNO08xRVC = true;
+                  Serial.println("Serial BNO08x Good To Go :-)");
+                  imuHandler();
+                  break;
+              }
+          }
+          if (!useBNO08xRVC)  Serial.println("No Serial BNO08x not Connected or Found");
+      }
   
     EEPROM.get(0, EEread);     // read identifier
       
@@ -780,9 +790,22 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     //--CAN--End-----
 
     //**GPS**
-      if (useCMPS || useBNO08x) Read_IMU();
+      if (useBNO08x) Read_IMU();
+      else
+      {
+          //RVC BNO08x
+          if (rvc.read(&bnoData)) useBNO08xRVC = true;
+      }
+
+      if (useBNO08xRVC && bnoTimer > 40 && bnoTrigger)
+      {
+          bnoTrigger = false;
+          imuHandler();   //Get IMU data ready
+      }
+
       if (gpsMode == 1 || gpsMode == 2)
       {
+          if(useBNO08xRVC) Read_IMU();
           Forward_GPS();
       }
       else
@@ -936,7 +959,7 @@ void udpSteerRecv(int sizeToRead)
        Udp.write(helloFromAutoSteer, sizeof(helloFromAutoSteer));
        Udp.endPacket();
            
-       if (useBNO08x || useCMPS)
+       if (useBNO08x || useBNO08xRVC)
        {
            Udp.beginPacket(ipDestination, 9999);
            Udp.write(helloFromIMU, sizeof(helloFromIMU));
