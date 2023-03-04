@@ -1,7 +1,11 @@
 
 #define GPS Serial3
-char rxbuffer[512];   //Extra serial rx buffer
-char txbuffer[512];   //Extra serial tx buffer
+char rxbuffer[512];         //Extra serial rx buffer
+char txbuffer[512];         //Extra serial tx buffer
+
+#define RadioRTK Serial7
+#define RadioBaudRate 115200
+char RTKrxbuffer[512];      //Extra serial rx buffer
 
 char nmeaBuffer[200];
 int count=0;
@@ -17,6 +21,9 @@ void GPS_setup()
   else GPS.begin(460800);
   GPS.addMemoryForRead(rxbuffer, 512);
   GPS.addMemoryForWrite(txbuffer, 512);
+
+  RadioRTK.begin(RadioBaudRate);
+  RadioRTK.addMemoryForRead(RTKrxbuffer, 512);
 
   // the dash means wildcard
   parser.setErrorHandler(errorHandler);
@@ -197,17 +204,23 @@ void Forward_Ntrip()
 {
 
 //Check for UDP Packet (Ntrip 2233)
-
     int NtripSize = NtripUdp.parsePacket();
     
-    if (NtripSize) {
+    if (NtripSize) 
+    {
         NtripUdp.read(NtripData, NtripSize);
         //Serial.print("Ntrip Data ="); 
         //Serial.write(NtripData, sizeof(NtripData)); 
         //Serial.write(10);
         //Serial.println("Ntrip Forwarded");
         GPS.write(NtripData, NtripSize); 
-  }
+    }
+
+//Check for Radio RTK
+    if (RadioRTK.available())
+    {
+        GPS.write(RadioRTK.read());
+    }
 }
     
 //-------------------------------------------------------------------------------------------------

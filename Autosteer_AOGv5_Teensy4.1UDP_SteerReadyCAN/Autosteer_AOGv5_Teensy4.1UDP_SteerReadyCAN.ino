@@ -790,7 +790,10 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     //--CAN--End-----
 
     //**GPS**
-      if (useBNO08x) Read_IMU();
+      if (useBNO08x)
+      {
+          Read_IMU();
+      }
       else
       {
           //RVC BNO08x
@@ -812,6 +815,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       {
           Panda_GPS();
       }
+
       Forward_Ntrip();
   
      //Check for UDP Packet
