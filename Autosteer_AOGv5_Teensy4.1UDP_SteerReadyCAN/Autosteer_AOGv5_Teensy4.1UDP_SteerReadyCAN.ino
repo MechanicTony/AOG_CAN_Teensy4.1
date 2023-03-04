@@ -22,7 +22,6 @@
 // GPS forwarding mode: (Serial Bynav etc)
 // - GPS to Serial3, Forward to AgIO via UDP
 // - Forward Ntrip from AgIO (Port 2233) to Serial3
-// - BNO08x Data sent as IMU message (Not in Steering Message), sent 70ms after steering message from AgOpen.
 
 // Panda Mode 
 // - GPS to Serial3, Forward to AgIO as Panda via UDP
@@ -201,16 +200,12 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint32_t lastTime = LOOP_TIME;
   uint32_t currentTime = LOOP_TIME;
 
-  //IMU message
-  const uint16_t IMU_DELAY_TIME = 70;    //70ms after steering message, 10hz GPS
-  uint32_t IMU_lastTime = IMU_DELAY_TIME;
-  uint32_t IMU_currentTime = IMU_DELAY_TIME;
-
   //IMU data                            
   const uint16_t GYRO_LOOP_TIME = 20;   //50Hz IMU 
   uint32_t lastGyroTime = GYRO_LOOP_TIME;
+  uint32_t IMU_currentTime;
 
-  bool isTriggered = false, blink;
+  bool blink;
 
   //IMU data
   float roll = 0;
@@ -239,9 +234,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   // booleans to see what mode BNO08x
   bool useBNO08x = false;
   bool useBNO08xRVC = false;
-
-  // Address of CMPS14 shifted right one bit for arduino wire library
-  #define CMPS14_ADDRESS 0x60
 
   // BNO08x address variables to check where it is
   const uint8_t bno08xAddresses[] = {0x4A,0x4B};
@@ -277,10 +269,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   uint8_t aog2Count = 0;
   uint8_t pressureReading;
   uint8_t currentReading;
-
-  //IMU PGN - 211 - 0xD3
-  uint8_t data[] = {0x80,0x81,0x7D,0xD3,8, 0,0,0,0, 0,0,0,0, 15};
-  int16_t dataSize = sizeof(data);
  
   //EEPROM
   int16_t EEread = 0;
@@ -808,7 +796,6 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
       if (gpsMode == 1 || gpsMode == 2)
       {
-          if(useBNO08xRVC) Read_IMU();
           Forward_GPS();
       }
       else
@@ -936,9 +923,6 @@ void udpSteerRecv(int sizeToRead)
       // Stop sending the helloAgIO message
       helloCounter = 0;
 
-      IMU_lastTime = millis();
-      isTriggered = true;
-
       if (blink)
         digitalWrite(13, HIGH);
       else digitalWrite(13, LOW);
@@ -949,7 +933,7 @@ void udpSteerRecv(int sizeToRead)
     }
     
     else if (udpData[3] == 200) // Hello from AgIO
-     {
+    {
        int16_t sa = (int16_t)(steerAngleActual * 100);
 
        helloFromAutoSteer[5] = (uint8_t)sa;
@@ -970,7 +954,7 @@ void udpSteerRecv(int sizeToRead)
            Udp.endPacket();
        }
 
-      }
+    }
           
 //Machine Data
     else if (udpData[3] == 0xEF)  //239 Machine Data
