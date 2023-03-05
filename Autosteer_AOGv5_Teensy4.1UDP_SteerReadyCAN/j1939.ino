@@ -191,8 +191,11 @@ void Update_N2K_129029_Buffer()
 	int64_t tempInt64;
 
 	//2 byte uint Days since 1970 (19345 days = 0x4B91)
-	N2K_129029_Data[1] = 0x91;
-	N2K_129029_Data[2] = 0x4B;
+	if (N2K_129029_Data[1] == 0 && N2K_129029_Data[2] == 0)		//If these are zero the ZDA NMEA message must be missing
+	{
+		N2K_129029_Data[1] = 0x91;
+		N2K_129029_Data[2] = 0x4B;
+	}
 
 	//4 byte double UTC seconds since midnight
 	tempInt32 = utcTime * 1000;

@@ -1088,9 +1088,9 @@ void udpSteerRecv(int sizeToRead)
                 GPS_5hz = 0;
                 sendISOBUS_65267_65256();
             }
-        }
 
-        GPS_5hz++;
+            GPS_5hz++;
+        }
 
     }//end D0
 

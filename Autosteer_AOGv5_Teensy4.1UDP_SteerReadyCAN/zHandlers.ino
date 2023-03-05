@@ -104,6 +104,30 @@ void GGA_Handler() //Rec'd GGA
         itoa(65535, imuHeading, 10);       //65535 is max value to stop AgOpen using IMU in Panda
         BuildNmea();
     }
+    /*
+    Serial.println(utcTime,1);
+    Serial.println(geoidalGGA, 2);
+    Serial.println(fixTypeGGA);
+    Serial.println(satsGGA);
+    Serial.println(hdopGGA,2);
+    Serial.println(rtkAgeGGA, 1);
+    Serial.println("...........");
+    */
+
+    static int GPS_1hz = 0;
+
+    if (sendGPStoISOBUS)
+    {
+        if (GPS_1hz > 9)
+        {
+            GPS_1hz = 0;
+            sendISOBUS_129029;
+            sendISOBUS_65254;
+        }
+
+        GPS_1hz++;
+    }
+
 }
 
 void VTG_Handler()
