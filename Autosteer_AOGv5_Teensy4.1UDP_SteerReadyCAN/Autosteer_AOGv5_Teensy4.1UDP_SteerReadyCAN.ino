@@ -1172,39 +1172,6 @@ void udpSteerRecv(int sizeToRead)
     
   } //end if 80 81 7F
 
-  else if (udpData[0] == 0x80 && udpData[1] == 0x81 && udpData[2] == 0x7C) //GPS from AgIO Data
-  {
-
-    if (udpData[3] == 0xD6)  //AgIO > AgOpenGPS NMEA PGN
-    {
-        N2K_129029_Data[31] = udpData[43];                      //Fix Type
-
-        uint16_t tempSats = (udpData[41] | udpData[42] << 8);
-        N2K_129029_Data[33] = (uint8_t)tempSats;                //Sat's
-
-        N2K_129029_Data[34] = udpData[44];                      //HDOP
-        N2K_129029_Data[35] = udpData[45];
-
-        N2K_129029_Data[46] = udpData[45];                      //Corr Age
-        N2K_129029_Data[47] = udpData[46];
-
-        static int GPS_1hz = 0;
-
-        if (sendGPStoISOBUS)
-        {
-            if (GPS_1hz > 9)
-            {
-                GPS_1hz = 0;
-                sendISOBUS_129029();
-            }
-        }
-
-        GPS_1hz++;
-
-    }//end D6
-
-  }//end if 80 81 7C
-
 } //end udp callback
 
 
