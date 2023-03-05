@@ -117,7 +117,7 @@ elapsedMillis tempChecker;
     };  ConfigIP networkAddress;   //3 bytes
   
   // Module IP Address / Port
-  static uint8_t ip[] = { 0,0,0,126 };
+  IPAddress ip = { 0,0,0,126 };
   unsigned int localPort = 8888;  
   unsigned int NtripPort = 2233;    
   
@@ -141,9 +141,9 @@ elapsedMillis tempChecker;
 //----Teensy 4.1 CANBus--Start---------------------
 
 #include <FlexCAN_T4.h>
-FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> K_Bus;    //Tractor / Control Bus
-FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> ISO_Bus;  //ISO Bus
-FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> V_Bus;    //Steering Valve Bus
+FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_128> K_Bus;    //Tractor / Control Bus
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_128> ISO_Bus;  //ISO Bus
+FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_128> V_Bus;    //Steering Valve Bus
 
 #define ledPin 5        //Option for LED, CAN Valve Ready To Steer.
 #define engageLED 24    //Option for LED, to see if Engage message is recived.
@@ -467,17 +467,17 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     highLowPerDeg = ((float)(steerSettings.highPWM - steerSettings.lowPWM)) / LOW_HIGH_DEGREES;
          
     //----Teensy 4.1 Ethernet--Start---------------------
-
-      Ethernet.begin(mac,0);          // Start Ethernet with IP 0.0.0.0
   
       delay(500);
-  
+ 
       if (Ethernet.linkStatus() == LinkOFF) 
       {
         Serial.println("\r\nEthernet cable is not connected - Who cares we will start ethernet anyway.");
       }  
-  
-    //grab the ip from EEPROM
+
+      Ethernet.begin(mac,0);          // Start Ethernet with IP 0.0.0.0
+
+      //grab the ip from EEPROM
       ip[0] = networkAddress.ipOne;
       ip[1] = networkAddress.ipTwo;
       ip[2] = networkAddress.ipThree;
