@@ -14,6 +14,7 @@ char fixQuality[2];
 char numSats[4];
 char HDOP[5];
 char altitude[12];
+char geoid[12];
 char ageDGPS[10];
 
 // VTG
@@ -37,6 +38,9 @@ void GGA_Handler() //Rec'd GGA
     // fix time
     parser.getArg(0, fixTime);
 
+    String tempString = fixTime;
+    utcTime = tempString.toFloat();
+
     // latitude
     parser.getArg(1, latitude);
     parser.getArg(2, latNS);
@@ -48,17 +52,35 @@ void GGA_Handler() //Rec'd GGA
     // fix quality
     parser.getArg(5, fixQuality);
 
+    tempString = fixQuality;
+    fixTypeGGA = tempString.toInt();
+
     // satellite #
     parser.getArg(6, numSats);
+
+    tempString = numSats;
+    satsGGA = tempString.toInt();
 
     // HDOP
     parser.getArg(7, HDOP);
 
+    tempString = HDOP;
+    hdopGGA = tempString.toFloat();
+
     // altitude
     parser.getArg(8, altitude);
 
+    // height of geoid
+    parser.getArg(10, geoid);
+
+    tempString = geoid;
+    geoidalGGA = tempString.toFloat();
+
     // time of last DGPS update
     parser.getArg(12, ageDGPS);
+
+    tempString = ageDGPS;
+    rtkAgeGGA = tempString.toFloat();
 
     bnoTimer = 0;
     bnoTrigger = true;

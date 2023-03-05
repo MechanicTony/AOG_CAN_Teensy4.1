@@ -184,21 +184,27 @@ void Update_N2K_129029_Buffer()
 {
 	byte tempDouble[8];
 	byte tempFloat[4];
+	byte tempTwoByte[2];
+
+	int16_t tempInt16;
+	int32_t tempInt32;
+	int64_t tempInt64;
 
 	//2 byte uint Days since 1970 (19345 days = 0x4B91)
 	N2K_129029_Data[1] = 0x91;
 	N2K_129029_Data[2] = 0x4B;
 
 	//4 byte double UTC seconds since midnight
-	utcTime = fakeUTCtime * 0.001;
-	memcpy(&tempFloat, &utcTime, 4);
+	tempInt32 = utcTime * 1000;
+	memcpy(&tempFloat, &tempInt32, 4);
 	N2K_129029_Data[3] = tempFloat[0];
 	N2K_129029_Data[4] = tempFloat[1];
 	N2K_129029_Data[5] = tempFloat[2];
 	N2K_129029_Data[6] = tempFloat[3];
 
 	//8 byte double Latitude
-	memcpy(&tempDouble, &pivotLat,8);
+	tempInt64 = pivotLat * 10000000000000000;
+	memcpy(&tempDouble, &tempInt64,8);
 	N2K_129029_Data[7] = tempDouble[0];
 	N2K_129029_Data[8] = tempDouble[1];
 	N2K_129029_Data[9] = tempDouble[2];
@@ -209,7 +215,8 @@ void Update_N2K_129029_Buffer()
 	N2K_129029_Data[14] = tempDouble[7];
 
 	//8 byte double Longitude
-	memcpy(&tempDouble, &pivotLon, 8);
+	tempInt64 = pivotLon * 10000000000000000;
+	memcpy(&tempDouble, &tempInt64, 8);
 	N2K_129029_Data[15] = tempDouble[0];
 	N2K_129029_Data[16] = tempDouble[1];
 	N2K_129029_Data[17] = tempDouble[2];
@@ -220,7 +227,8 @@ void Update_N2K_129029_Buffer()
 	N2K_129029_Data[22] = tempDouble[7];
 
 	//8 byte double Altitude
-	memcpy(&tempDouble, &pivotAltitude, 8);
+	tempInt64 = pivotAltitude * 10000000000000000;
+	memcpy(&tempDouble, &tempInt64, 8);
 	N2K_129029_Data[23] = tempDouble[0];
 	N2K_129029_Data[24] = tempDouble[1];
 	N2K_129029_Data[25] = tempDouble[2];
@@ -231,29 +239,38 @@ void Update_N2K_129029_Buffer()
 	N2K_129029_Data[30] = tempDouble[7];
 
 	//Fix Type
-	//N2K_129029_Data[31] = 0;     Fix type direct copy from AgIO NMEA PGN
+	N2K_129029_Data[31] = fixTypeGGA;
 
 	// Integrity 2 bit, reserved 6 bits
-	N2K_129029_Data[32] = 1 | 0xfc;  // Integrity 2 bit, reserved 6 bits
+	N2K_129029_Data[32] = 1 | 0xfc;					// Integrity 2 bit, reserved 6 bits
 
 	//Satellites
-	//N2K_129029_Data[33] = 0;		Sats direct copy from AgIO NMEA PGN
+	N2K_129029_Data[33] = satsGGA;
 
 	//HDOP 
-	//N2K_129029_Data[34];			HDOP direct copy from AgIO NMEA PGN
-	//N2K_129029_Data[35];
+	tempInt16 = hdopGGA * 100;
+	memcpy(&tempTwoByte, &tempInt16, 2);
+	N2K_129029_Data[34] = tempTwoByte[0];
+	N2K_129029_Data[35] = tempTwoByte[1];
 
 	//PDOP - Just copy HDOP
 	N2K_129029_Data[36] = N2K_129029_Data[34];
 	N2K_129029_Data[37] = N2K_129029_Data[35];
 
 	//4 byte double, Geoidal Separation
-	N2K_129029_Data[38] = 0;
-	N2K_129029_Data[39] = 0;
-	N2K_129029_Data[40] = 0;
-	N2K_129029_Data[41] = 0;
+	tempInt32 = geoidalGGA * 100;
+	memcpy(&tempFloat, &tempInt32, 4);
+
+	N2K_129029_Data[38] = tempFloat[0];
+	N2K_129029_Data[39] = tempFloat[1];
+	N2K_129029_Data[40] = tempFloat[2];
+	N2K_129029_Data[41] = tempFloat[3];
 	
-	if (N2K_129029_Data[45] == 0 && N2K_129029_Data[46] == 0)
+	// RTK age
+	tempInt16 = rtkAgeGGA * 100;
+	memcpy(&tempTwoByte, &tempInt16, 2);
+
+	if (tempInt16 == 0)
 	{
 		N2K_129029_Data[42] = 0xFF;
 		N2K_129029_Data[43] = 0xFF;
@@ -270,8 +287,8 @@ void Update_N2K_129029_Buffer()
 		N2K_129029_Data[43] = 0x00;
 		N2K_129029_Data[44] = 0x02;
 
-		//N2K_129029_Data[45]			Corr Age direct copy from AgIO NMEA PGN
-		//N2K_129029_Data[46] 
+		N2K_129029_Data[45] = tempTwoByte[0];
+		N2K_129029_Data[46] = tempTwoByte[1];
 	}
 
 	N2K_129029_Data[47] = 0xFF;

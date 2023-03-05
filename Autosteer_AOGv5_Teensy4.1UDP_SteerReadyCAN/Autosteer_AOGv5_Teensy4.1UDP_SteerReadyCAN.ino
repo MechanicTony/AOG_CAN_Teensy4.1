@@ -215,9 +215,9 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   //GPS Data
   bool sendGPStoISOBUS = true;
   double pivotLat, pivotLon, fixHeading, pivotAltitude;
-  float utcTime;
-
-  elapsedMillis fakeUTCtime;
+  float utcTime, geoidalGGA;
+  uint8_t fixTypeGGA, satsGGA;
+  float hdopGGA, rtkAgeGGA;
 
   uint8_t N2K_129029_Data[48];
 
