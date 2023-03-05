@@ -99,7 +99,7 @@ String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 05.03.2023");
   #include "BNO08x_AOG.h"
 
 /* A parser is declared with 3 handlers at most */
-NMEAParser<2> parser;
+NMEAParser<3> parser;
 
 //Used to set CPU speed
 extern "C" uint32_t set_arm_clock(uint32_t frequency); // required prototype

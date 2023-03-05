@@ -84,6 +84,22 @@ void GGA_Handler() //Rec'd GGA
     }
 }
 
+void VTG_Handler()
+{
+    // vtg heading
+    parser.getArg(0, vtgHeading);
+
+    // vtg Speed knots
+    parser.getArg(4, speedKnots);
+
+
+}
+
+void ZDA_Handler()
+{
+
+}
+
 void imuHandler()
 {
     int16_t temp = 0;
@@ -341,14 +357,3 @@ void CalculateChecksum(void)
     010.2,K      Ground speed, Kilometers per hour
      48          Checksum
 */
-
-void VTG_Handler()
-{
-  // vtg heading
-  parser.getArg(0, vtgHeading);
-
-  // vtg Speed knots
-  parser.getArg(4, speedKnots);
-
-
-}
