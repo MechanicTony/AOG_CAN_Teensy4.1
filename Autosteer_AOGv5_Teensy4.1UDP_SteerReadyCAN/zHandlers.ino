@@ -121,8 +121,8 @@ void GGA_Handler() //Rec'd GGA
         if (GPS_1hz > 9)
         {
             GPS_1hz = 0;
-            sendISOBUS_129029;
-            sendISOBUS_65254;
+            sendISOBUS_129029();
+            sendISOBUS_65254();
         }
 
         GPS_1hz++;
