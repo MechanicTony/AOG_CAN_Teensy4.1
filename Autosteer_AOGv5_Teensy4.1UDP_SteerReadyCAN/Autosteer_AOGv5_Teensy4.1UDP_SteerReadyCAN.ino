@@ -141,9 +141,9 @@ elapsedMillis tempChecker;
 //----Teensy 4.1 CANBus--Start---------------------
 
 #include <FlexCAN_T4.h>
-FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_128> K_Bus;    //Tractor / Control Bus
-FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_128> ISO_Bus;  //ISO Bus
-FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_128> V_Bus;    //Steering Valve Bus
+FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_256> K_Bus;    //Tractor / Control Bus
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_256> ISO_Bus;  //ISO Bus
+FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;    //Steering Valve Bus
 
 #define ledPin 5        //Option for LED, CAN Valve Ready To Steer.
 #define engageLED 24    //Option for LED, to see if Engage message is recived.

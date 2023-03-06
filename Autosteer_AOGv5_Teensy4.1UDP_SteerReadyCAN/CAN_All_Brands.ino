@@ -132,11 +132,6 @@ if (Brand == 2){
   
   delay (300); 
 
-  for (int i = 0; i < 48; i++) //Fill the NMEA2000 PGN 129029 with 0xFF
-  {
-      N2K_129029_Data[i] = 0xFF;
-  }
-
 } //End CAN SETUP
 
 

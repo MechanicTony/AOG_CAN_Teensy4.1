@@ -122,7 +122,6 @@ void GGA_Handler() //Rec'd GGA
         {
             GPS_1hz = 0;
             sendISOBUS_129029();
-            sendISOBUS_65254();
         }
 
         GPS_1hz++;
