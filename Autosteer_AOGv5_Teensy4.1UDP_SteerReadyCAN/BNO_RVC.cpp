@@ -48,10 +48,10 @@ bool BNO_rvc::read(BNO_rvcData* bnoData) {
     //while (serial_dev->available() > 0) serial_dev->read();
 
     int16_t temp;
+    temp = buffer[1] + (buffer[2] << 8);
 
     if (angCounter < 20)
     {
-        temp = buffer[1] + (buffer[2] << 8);
         bnoData->yawX100 = temp; //For angular velocity calc
         bnoData->angVel += (temp - prevYAw);
         angCounter++;
@@ -61,7 +61,6 @@ bool BNO_rvc::read(BNO_rvcData* bnoData) {
     {
         angCounter = 0;
         prevYAw = bnoData->angVel = 0;
-        temp = 0;
     }
 
     bnoData->yawX10 = (int16_t)((float)temp * DEGREE_SCALE);

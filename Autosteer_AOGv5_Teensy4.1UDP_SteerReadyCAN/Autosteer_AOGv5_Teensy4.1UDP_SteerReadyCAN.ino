@@ -54,7 +54,7 @@
 
 //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 05.03.2023");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 19.08.2023");
 
   ////////////////// User Settings /////////////////////////  
 
@@ -151,6 +151,8 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;    //Steering Valve Bus
 uint8_t Brand = 1;              //Variable to set brand via serial monitor.
 uint8_t gpsMode = 1;            //Variable to set GPS mode via serial monitor.
 uint8_t CANBUS_ModuleID = 0x1C; //Used for the Module CAN ID
+
+bool reverse_MT = 0;
 
 uint32_t Time;                  //Time Arduino has been running
 uint32_t relayTime;             //Time to keep "Button Pressed" from CAN Message
@@ -515,6 +517,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       else if (Brand == 5) Serial.println("Brand = FendtOne (Set Via Service Tool)");
       else if (Brand == 6) Serial.println("Brand = Lindner (Set Via Service Tool)");
       else if (Brand == 7) Serial.println("Brand = AgOpenGPS (Set Via Service Tool)");
+      else if (Brand == 8) Serial.println("Brand = Cat MT (Set Via Service Tool)");
       else Serial.println("No Tractor Brand Set, Set Via Service Tool");
 
       Serial.println("\r\nGPS Mode:");
@@ -843,6 +846,11 @@ void udpSteerRecv(int sizeToRead)
       //Bit 8,9    set point steer angle * 100 is sent
       steerAngleSetPoint = ((float)(udpData[8] | ((int8_t)udpData[9]) << 8))*0.01; //high low bytes
       
+      if (Brand == 8)
+      {
+          if (reverse_MT) steerAngleSetPoint *= -1.00;
+      }
+
       //Serial.println(gpsSpeed); 
       
 	  if ((bitRead(guidanceStatus, 0) == 0) || (steerSwitch == 1))        //AgOpen or Steer switch off
@@ -1157,6 +1165,7 @@ void udpSteerRecv(int sizeToRead)
        else if (Brand == 5) Serial.println("Brand = FendtOne (Set Via Service Tool)");
        else if (Brand == 6) Serial.println("Brand = Lindner (Set Via Service Tool)");
        else if (Brand == 7) Serial.println("Brand = AgOpenGPS (Set Via Service Tool)");
+       else if (Brand == 8) Serial.println("Brand = Cat MT (Set Via Service Tool)");
        else Serial.println("No Tractor Brand Set, Set Via Service Tool");
 
        Serial.println("\r\nGPS Mode:");
