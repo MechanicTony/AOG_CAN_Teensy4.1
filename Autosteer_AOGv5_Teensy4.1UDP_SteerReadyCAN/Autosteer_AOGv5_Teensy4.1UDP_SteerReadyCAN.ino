@@ -215,7 +215,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   float yaw = 0;
 
   //GPS Data
-  bool sendGPStoISOBUS = true;
+  bool sendGPStoISOBUS = false;
   double pivotLat, pivotLon, fixHeading, pivotAltitude;
   float utcTime, geoidalGGA;
   uint8_t fixTypeGGA, satsGGA;
