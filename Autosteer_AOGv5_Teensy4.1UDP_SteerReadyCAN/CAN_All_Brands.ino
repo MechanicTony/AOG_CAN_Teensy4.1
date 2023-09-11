@@ -27,6 +27,7 @@ if (Brand == 0){
 if (Brand == 1){
   V_Bus.setFIFOFilter(0, 0x0CAC1C13, EXT);  //Valtra Curve Data & Valve State Message
   V_Bus.setFIFOFilter(1, 0x18EF1C32, EXT);  //Valtra Engage Message
+  V_Bus.setFIFOFilter(1, 0x18EF1CFC, EXT);  //Mccormick Engage Message
   CANBUS_ModuleID = 0x1C;
   }  
 if (Brand == 2){
@@ -372,6 +373,19 @@ void VBus_Receive()
                     relayTime = ((millis() + 1000));
                 }
             } 
+
+            if (VBusReceiveData.id == 0x18EF1CFC)//Mccormick engage message
+            {
+                if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[3])== 255)
+                {   
+                    Time = millis();
+                    digitalWrite(engageLED,HIGH); 
+                    engageCAN = 1;
+                    relayTime = ((millis() + 1000));
+                }
+            } 
+
+            
         }//End Brand == 1   
 
         if (Brand == 2)
