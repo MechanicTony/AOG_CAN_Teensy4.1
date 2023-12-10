@@ -14,6 +14,7 @@ char fixQuality[2];
 char numSats[4];
 char HDOP[5];
 char altitude[12];
+char geoid[12];
 char ageDGPS[10];
 
 // VTG
@@ -37,6 +38,9 @@ void GGA_Handler() //Rec'd GGA
     // fix time
     parser.getArg(0, fixTime);
 
+    String tempString = fixTime;
+    utcTime = tempString.toFloat();
+
     // latitude
     parser.getArg(1, latitude);
     parser.getArg(2, latNS);
@@ -48,23 +52,50 @@ void GGA_Handler() //Rec'd GGA
     // fix quality
     parser.getArg(5, fixQuality);
 
+    tempString = fixQuality;
+    fixTypeGGA = tempString.toInt();
+
     // satellite #
     parser.getArg(6, numSats);
+
+    tempString = numSats;
+    satsGGA = tempString.toInt();
 
     // HDOP
     parser.getArg(7, HDOP);
 
+    tempString = HDOP;
+    hdopGGA = tempString.toFloat();
+
     // altitude
     parser.getArg(8, altitude);
+
+    // height of geoid
+    parser.getArg(10, geoid);
+
+    tempString = geoid;
+    geoidalGGA = tempString.toFloat();
 
     // time of last DGPS update
     parser.getArg(12, ageDGPS);
 
-    if (useBNO08x || useCMPS)
+    tempString = ageDGPS;
+    rtkAgeGGA = tempString.toFloat();
+
+    bnoTimer = 0;
+    bnoTrigger = true;
+
+    if (useBNO08x)
     {
        imuHandler();          //Get IMU data ready
-       BuildNmea();           //Build & send data GPS data to AgIO (Both Dual & Single)
+       BuildNmea();           //Build & send data GPS data to AgIO
     }
+
+    else if (useBNO08xRVC)
+    {
+        BuildNmea();           //Build & send data GPS data to AgIO
+    }
+
     else
     {
         itoa(0, imuYawRate, 10);
@@ -73,48 +104,52 @@ void GGA_Handler() //Rec'd GGA
         itoa(65535, imuHeading, 10);       //65535 is max value to stop AgOpen using IMU in Panda
         BuildNmea();
     }
+    /*
+    Serial.println(utcTime,1);
+    Serial.println(geoidalGGA, 2);
+    Serial.println(fixTypeGGA);
+    Serial.println(satsGGA);
+    Serial.println(hdopGGA,2);
+    Serial.println(rtkAgeGGA, 1);
+    Serial.println("...........");
+    */
+
+    static int GPS_1hz = 0;
+
+    if (sendGPStoISOBUS)
+    {
+        if (GPS_1hz > 9)
+        {
+            GPS_1hz = 0;
+            sendISOBUS_129029();
+        }
+
+        GPS_1hz++;
+    }
+
+}
+
+void VTG_Handler()
+{
+    // vtg heading
+    parser.getArg(0, vtgHeading);
+
+    // vtg Speed knots
+    parser.getArg(4, speedKnots);
+
+
+}
+
+void ZDA_Handler()
+{
+
 }
 
 void imuHandler()
 {
     int16_t temp = 0;
 
-    if (useCMPS)
-    {
-        //the heading x10
-        Wire.beginTransmission(CMPS14_ADDRESS);
-        Wire.write(0x1C);
-        Wire.endTransmission();
-
-        Wire.requestFrom(CMPS14_ADDRESS, 3);
-        while (Wire.available() < 3);
-
-        roll = int16_t(Wire.read() << 8 | Wire.read());
-
-        // the heading x10
-        Wire.beginTransmission(CMPS14_ADDRESS);
-        Wire.write(0x02);
-        Wire.endTransmission();
-
-        Wire.requestFrom(CMPS14_ADDRESS, 3);
-        while (Wire.available() < 3);
-
-        temp = Wire.read() << 8 | Wire.read();
-        itoa(temp, imuHeading, 10);
-
-        // 3rd byte pitch
-        int8_t pitch = Wire.read();
-        itoa(pitch, imuPitch, 10);
-
-        // the roll x10
-        temp = (int16_t)roll;
-        itoa(temp, imuRoll, 10);
-
-        // YawRate - 0 for now
-        itoa(0, imuYawRate, 10);
-    }
-
-    else if (useBNO08x)
+    if (useBNO08x)
     {
         //BNO is reading in its own timer    
         // Fill rest of Panda Sentence - Heading
@@ -131,6 +166,51 @@ void imuHandler()
 
         // YawRate - 0 for now
         itoa(0, imuYawRate, 10);
+    }
+
+    else if (useBNO08xRVC)
+    {
+        float angVel;
+
+        // Fill rest of Panda Sentence - Heading
+        itoa(bnoData.yawX10, imuHeading, 10);
+
+        if (steerConfig.IsUseY_Axis)
+        {
+            // the pitch x100
+            itoa(bnoData.pitchX10, imuPitch, 10);
+
+            // the roll x100
+            itoa(bnoData.rollX10, imuRoll, 10);
+        }
+        else
+        {
+            // the pitch x100
+            itoa(bnoData.rollX10, imuPitch, 10);
+
+            // the roll x100
+            itoa(bnoData.pitchX10, imuRoll, 10);
+        }
+
+        //Serial.print(rvc.angCounter);
+        //Serial.print(", ");
+        //Serial.print(bnoData.angVel);
+        //Serial.print(", ");
+        // YawRate
+        if (rvc.angCounter > 0)
+        {
+            angVel = ((float)bnoData.angVel) / (float)rvc.angCounter;
+            angVel *= 10.0;
+            rvc.angCounter = 0;
+            bnoData.angVel = (int16_t)angVel;
+        }
+        else
+        {
+            bnoData.angVel = 0;
+        }
+
+        itoa(bnoData.angVel, imuYawRate, 10);
+        bnoData.angVel = 0;
     }
 }
 
@@ -322,14 +402,3 @@ void CalculateChecksum(void)
     010.2,K      Ground speed, Kilometers per hour
      48          Checksum
 */
-
-void VTG_Handler()
-{
-  // vtg heading
-  parser.getArg(0, vtgHeading);
-
-  // vtg Speed knots
-  parser.getArg(4, speedKnots);
-
-
-}

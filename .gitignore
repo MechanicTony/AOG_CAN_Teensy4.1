@@ -3,7 +3,6 @@
 ################################################################################
 
 *.user
-*.h
 *.xml
 *.sln
 *.vcxproj
@@ -16,3 +15,4 @@
 *.db-shm
 *.db-wal
 *.opendb
+Autosteer_AOGv5_Teensy4.1UDP_SteerReadyCAN/__vm/.Autosteer_AOGv5_Teensy4.1UDP_SteerReadyCAN.vsarduino.h
