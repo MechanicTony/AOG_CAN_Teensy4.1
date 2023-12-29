@@ -29,6 +29,7 @@ if (Brand == 1){
   V_Bus.setFIFOFilter(1, 0x18EF1C32, EXT);  //Valtra Engage Message
   V_Bus.setFIFOFilter(2, 0x18EF1CFC, EXT);  //Mccormick Engage Message
   V_Bus.setFIFOFilter(3, 0x18EF1C00, EXT);  //MF Engage Message
+  V_Bus.setFIFOFilter(4, 0x18FF8306, EXT);  //Mccormick Joystick
   CANBUS_ModuleID = 0x1C;
   }  
 if (Brand == 2){
@@ -169,11 +170,11 @@ else if (Brand == 1){
     VBusSendData.buf[1] = highByte(setCurve);
     if (intendToSteer == 1)VBusSendData.buf[2] = 253;
     if (intendToSteer == 0)VBusSendData.buf[2] = 252;
-    VBusSendData.buf[3] = 255;
-    VBusSendData.buf[4] = 255;
-    VBusSendData.buf[5] = 255;
-    VBusSendData.buf[6] = 255;
-    VBusSendData.buf[7] = 255;
+    VBusSendData.buf[3] = 0;
+    VBusSendData.buf[4] = 0;
+    VBusSendData.buf[5] = 0;
+    VBusSendData.buf[6] = 0;
+    VBusSendData.buf[7] = 0;
     V_Bus.write(VBusSendData);
 }
 else if (Brand == 2){
@@ -375,7 +376,7 @@ void VBus_Receive()
                 }
             } 
 
-            if (VBusReceiveData.id == 0x18EF1CFC)//Mccormick engage message
+            else if (VBusReceiveData.id == 0x18EF1CFC)//Mccormick engage message
             {
                 if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[3])== 255)
                 {   
@@ -385,7 +386,7 @@ void VBus_Receive()
                     relayTime = ((millis() + 1000));
                 }
             } 
-            if (VBusReceiveData.id == 0x18EF1C00)//MF engage message
+            else if (VBusReceiveData.id == 0x18EF1C00)//MF engage message
             {
                 if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1)
                 {   
@@ -395,7 +396,16 @@ void VBus_Receive()
                     relayTime = ((millis() + 1000));
                 }
             } 
-
+            else if (VBusReceiveData.id == 0x18FF8306)//Mccormick Joystick
+            {
+                if (bitRead(VBusReceiveData.buf[5], 3) == 1)
+                {
+                    Time = millis();
+                    digitalWrite(engageLED, HIGH);
+                    engageCAN = 1;
+                    relayTime = ((millis() + 1000));
+                }
+            }
             
         }//End Brand == 1   
 

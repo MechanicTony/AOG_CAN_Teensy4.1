@@ -54,7 +54,7 @@
 
 //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 19.08.2023");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.12.2023");
 
   ////////////////// User Settings /////////////////////////  
 
