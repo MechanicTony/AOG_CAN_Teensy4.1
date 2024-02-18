@@ -34,7 +34,7 @@ if (Brand == 1){
   }  
 if (Brand == 2){
   V_Bus.setFIFOFilter(0, 0x0CACAA08, EXT);  //CaseIH Curve Data & Valve State Message
-  V_Bus.setFIFOUserFilter(1, 0x0CEFAA08, 0x0CEF08AA, 0x0000FF00, EXT);
+  V_Bus.setFIFOFilter(1, 0x18FFBB03, EXT);  //CaseIH Engage Message
   CANBUS_ModuleID = 0xAA;
   }   
 if (Brand == 3){
@@ -417,6 +417,18 @@ void VBus_Receive()
                 estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
                 steeringValveReady = (VBusReceiveData.buf[2]); 
           } 
+
+          //**Engage Message**
+          if (VBusReceiveData.id == 0x18FFBB03)
+          {
+              if (bitRead(VBusReceiveData.buf[0], 2))
+              {
+                  Time = millis();
+                  digitalWrite(engageLED, HIGH);
+                  engageCAN = 1;
+                  relayTime = ((millis() + 1000));
+              }
+          }
   
         }//End Brand == 2 
 
