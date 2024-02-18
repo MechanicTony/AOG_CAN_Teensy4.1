@@ -8,16 +8,7 @@
 
 //----------------------------------------------------------
 
-//Tony / @Commonrail Version 05.03.2023
-//30.06.2022  - Ryan / @RGM Added JCB CAN engage message
-//02.07.2022  - Added Claas headland from Ryan
-//            - Fix up pilot valve output for Ryan Claas wiring mod 
-//31.12.2022  - Add Panda mode & GPS options, set via serial monitor service tool
-//29.01.2023  - Add WAS mapping option to fix wheel angle to turning radius conversion
-//            - Add Danfoss PVED-CL setup options (Claas mods mainly)
-//            - Add CaseIH/New Holland engage from CAN options
-//05.03.2023  - Add GPS to ISOBUS option
-//            - Add RVC BNO08x option and remove CMPS14 option
+//Tony / @Commonrail Version 18.02.2024
 
 // GPS forwarding mode: (Serial Bynav etc)
 // - GPS to Serial3, Forward to AgIO via UDP
@@ -54,7 +45,7 @@
 
 //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 29.12.2023");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 18.02.2024");
 
   ////////////////// User Settings /////////////////////////  
 
