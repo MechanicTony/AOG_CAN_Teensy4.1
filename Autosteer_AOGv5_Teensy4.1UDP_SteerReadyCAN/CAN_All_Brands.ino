@@ -52,6 +52,7 @@ if (Brand == 5){
   }   
 if (Brand == 6){
   V_Bus.setFIFOFilter(0, 0x0CACF013, EXT);  //Lindner Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(1, 0x0CEFF021, EXT);  //Lindner Engage Message
   CANBUS_ModuleID = 0xF0;
   }
 if (Brand == 7){
@@ -491,7 +492,19 @@ void VBus_Receive()
                 estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]);  // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve 
                 steeringValveReady = (VBusReceiveData.buf[2]); 
           } 
-   
+
+                      //**Engage Message**
+          if (VBusReceiveData.id == 0x0CEFF021)
+          {
+              if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1)
+              {   
+                  Time = millis();
+                  digitalWrite(engageLED,HIGH); 
+                  engageCAN = 1;
+                  relayTime = ((millis() + 1000));
+              }
+          }
+          
         }//End Brand == 6  
 
         if (Brand == 7)
