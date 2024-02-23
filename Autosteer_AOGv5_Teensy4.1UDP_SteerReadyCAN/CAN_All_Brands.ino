@@ -493,7 +493,7 @@ void VBus_Receive()
                 steeringValveReady = (VBusReceiveData.buf[2]); 
           } 
 
-                      //**Engage Message**
+          //**Engage Message**
           if (VBusReceiveData.id == 0x0CEFF021)
           {
               if ((VBusReceiveData.buf[0])== 15 && (VBusReceiveData.buf[1])== 96 && (VBusReceiveData.buf[2])== 1)
