@@ -546,116 +546,90 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
   void loop()
   {
 
-    currentTime = millis();
+        currentTime = millis();
 
-    //--Main Timed Loop----------------------------------   
-    if (currentTime - lastTime >= LOOP_TIME)
-    {
-      lastTime = currentTime;
+        //--Main Timed Loop----------------------------------   
+        if (currentTime - lastTime >= LOOP_TIME)
+        {
+          lastTime = currentTime;
   
-      //reset debounce
-      encEnable = true;
+          //reset debounce
+          encEnable = true;
       
-      //If connection lost to AgOpenGPS, the watchdog will count up and turn off steering
-      if (watchdogTimer++ > 250) watchdogTimer = WATCHDOG_FORCE_VALUE;
+          //If connection lost to AgOpenGPS, the watchdog will count up and turn off steering
+          if (watchdogTimer++ > 250) watchdogTimer = WATCHDOG_FORCE_VALUE;
       
-      //read all the switches
+          //read all the switches
 
-      //CANBus     
-      if (steeringValveReady == 20 || steeringValveReady == 16) 
-      {
-        digitalWrite(ledPin, HIGH);
-      } 
-      else 
-      {
-        digitalWrite(ledPin, LOW);
-      }
+          //CANBus     
+          if (steeringValveReady == 20 || steeringValveReady == 16) 
+          {
+            digitalWrite(ledPin, HIGH);
+          } 
+          else 
+          {
+            digitalWrite(ledPin, LOW);
+          }
   
-      workSwitch = digitalRead(WORKSW_PIN);     // read work switch (PCB pin)
-      if (workCAN == 1) workSwitch = 0;         // If CAN workswitch is on, set workSwitch ON
+          workSwitch = digitalRead(WORKSW_PIN);     // read work switch (PCB pin)
+          if (workCAN == 1) workSwitch = 0;         // If CAN workswitch is on, set workSwitch ON
       
-      if (steerConfig.SteerSwitch == 1)         //steer switch on - off
-      {
-        steerSwitch = digitalRead(STEERSW_PIN); //read auto steer enable switch open = 0n closed = Off
-      }
-      else if(steerConfig.SteerButton == 1)     //steer Button momentary
-      {
-        reading = digitalRead(STEERSW_PIN); 
+          //Engage steering via 1 PCB Button or 2 Tablet or 3 CANBUS
 
-        //CAN
-        if (engageCAN == 1) reading = 0;              //CAN Engage is ON (Button is Pressed)
-              
-            if (reading == LOW && previous == HIGH) 
-            {
-                if (currentState == 1)
-                {
-                if (Brand == 3) steeringValveReady = 16;  //Fendt Valve Ready To Steer 
-                if (Brand == 5) steeringValveReady = 16;  //FendtOne Valve Ready To Steer 
-                currentState = 0;
-                steerSwitch = 0;
-                }
-                else
-                {
-                currentState = 1;
-                steerSwitch = 1;
-                }
-            }      
-            previous = reading;
-        
-           //--------CAN CutOut--------------------------
-           if (steeringValveReady != 20 && steeringValveReady != 16)
-           {            
+          // 1 PCB Button pressed?
+          reading = digitalRead(STEERSW_PIN);
+
+          // 2 Has tablet button been pressed?
+          if (previousStatus != guidanceStatus)
+          {
+              if (guidanceStatus == 1)    //Must have changed Off >> On
+              {
+                  Time = millis();
+                  digitalWrite(engageLED, HIGH);
+
+                  engageCAN = 1;
+                  relayTime = ((millis() + 1000));
+
+                  currentState = 1;
+              }
+              else
+              {
+                  currentState = 1;
+                  steerSwitch = 1;
+              }
+
+              previousStatus = guidanceStatus;
+          }
+
+          // 3 Has CANBUS button been pressed?
+          if (engageCAN == 1) reading = 0;              //CAN Engage is ON (Button is Pressed)
+
+          // Arduino software switch code
+          if (reading == LOW && previous == HIGH)
+          {
+              if (currentState == 1)
+              {
+                  if (Brand == 3) steeringValveReady = 16;  //Fendt Valve Ready To Steer 
+                  if (Brand == 5) steeringValveReady = 16;  //FendtOne Valve Ready To Steer 
+                  currentState = 0;
+                  steerSwitch = 0;
+              }
+              else
+              {
+                  currentState = 1;
+                  steerSwitch = 1;
+              }
+          }
+          previous = reading;
+
+          //--------CAN CutOut--------------------------
+          if (steeringValveReady != 20 && steeringValveReady != 16)
+          {
               steerSwitch = 1; // reset values like it turned off
               currentState = 1;
               previous = HIGH;
-           }
-      }
-      
-        else     // No steer switch and no steer button 
-        {
-        
-            if (steeringValveReady != 20 && steeringValveReady != 16)
-            {            
-                steerSwitch = 1; // reset values like it turned off
-                currentState = 1;
-                previous = HIGH;
-            }
-      
-            if (previousStatus != guidanceStatus) 
-            {
-                if (guidanceStatus == 1 && steerSwitch == 1 && previousStatus == 0)
-                {
-                if (Brand == 3) steeringValveReady = 16;  //Fendt Valve Ready To Steer 
-                if (Brand == 5) steeringValveReady = 16;  //FendtOne Valve Ready To Steer  
-                steerSwitch = 0;
-                }
-                else
-                {
-                steerSwitch = 1;
-                }
-            }      
-            previousStatus = guidanceStatus;
-        }
-      
-          if (steerConfig.ShaftEncoder && pulseCount >= steerConfig.PulseCountMax) 
-          {
-            steerSwitch = 1; // reset values like it turned off
-            currentState = 1;
-            previous = 0;
-          }     
-
-          // Current sensor?
-          if (steerConfig.CurrentSensor)
-          {
- 
           }
 
-          // Pressure sensor?
-          if (steerConfig.PressureSensor)
-          {
-
-          }
-      
           remoteSwitch = digitalRead(REMOTE_PIN); //read auto steer enable switch open = 0n closed = Off
           switchByte = 0;
           switchByte |= (remoteSwitch << 2);  //put remote in bit 2
@@ -740,7 +714,7 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
           Udp.endPacket();
           helloCounter = 0;
           }
-    } //end of main timed loop
+        } //end of main timed loop
 
     //This runs continuously, outside of the timed loop, keeps checking for new udpData, turn sense, CAN data etc
     //delay(1); 
