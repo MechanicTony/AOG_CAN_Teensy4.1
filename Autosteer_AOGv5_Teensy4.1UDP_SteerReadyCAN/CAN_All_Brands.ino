@@ -52,6 +52,7 @@ if (Brand == 5){
   }   
 if (Brand == 6){
   V_Bus.setFIFOFilter(0, 0x0CACF013, EXT);  //Lindner Curve Data & Valve State Message
+  V_Bus.setFIFOFilter(1, 0x0CEFF021, EXT);  //Lindner engage message
   CANBUS_ModuleID = 0xF0;
   }
 if (Brand == 7){
@@ -63,9 +64,13 @@ if (Brand == 8){
     V_Bus.setFIFOFilter(0, 0x18EF1CF0, EXT);  //Cat MTxxx Curve data, valve state and engage messages
     CANBUS_ModuleID = 0x1C;
 }
+if (Brand == 9) {
+    V_Bus.setFIFOFilter(0, 0x0CEFFF76, EXT);  //Cat MTxxx Curve data, valve state and engage messages
+    CANBUS_ModuleID = 0x2C;
+}
   
 // Claim V_Bus Address 
-if (Brand >= 0 && Brand <= 8){
+if (Brand >= 0 && Brand <= 9){
   CAN_message_t msgV;
   if (Brand == 0) msgV.id = 0x18EEFF1E;       //Claas
   else if (Brand == 1) msgV.id = 0x18EEFF1C;  //Massey, Valtra, ETC
@@ -75,7 +80,8 @@ if (Brand >= 0 && Brand <= 8){
   else if (Brand == 5) msgV.id = 0x18EEFF2C;  //FendtONE
   else if (Brand == 6) msgV.id = 0x18EEFFF0;  //Linder
   else if (Brand == 7) msgV.id = 0x18EEFF1C;  //AgOpenGPS
-  else if (Brand == 8) msgV.id = 0x18EEFF1C;  //Cat MTxxx
+  else if (Brand == 8) msgV.id = 0x18EEFF1C;  //Cat MTxxx Late
+  else if (Brand == 9) msgV.id = 0x18EEFF2C;  //Cat MTxxx Early
   msgV.flags.extended = true;
   msgV.len = 8;
   msgV.buf[0] = 0x00;
@@ -95,7 +101,7 @@ delay(500);
   ISO_Bus.setBaudRate(250000);
   ISO_Bus.enableFIFO();
 
-if (Brand >= 0 && Brand <= 7){
+if (Brand >= 0 && Brand <= 9){
   CAN_message_t msgISO;
   if (Brand == 0) msgISO.id = 0x18EEFF1E;       //Claas
   else if (Brand == 1) msgISO.id = 0x18EEFF1C;  //Massey, Valtra, ETC
@@ -105,6 +111,8 @@ if (Brand >= 0 && Brand <= 7){
   else if (Brand == 5) msgISO.id = 0x18EEFF2C;  //FendtOne
   else if (Brand == 6) msgISO.id = 0x18EEFFF0;  //Linder
   else if (Brand == 7) msgISO.id = 0x18EEFF1C;  //AgOpenGPS
+  else if (Brand == 8) msgISO.id = 0x18EEFF1C;  //Cat MTxxx Late
+  else if (Brand == 9) msgISO.id = 0x18EEFF2C;  //Cat MTxxx Early
   msgISO.flags.extended = true;
   msgISO.len = 8;
   msgISO.buf[0] = 0x00;
@@ -294,6 +302,22 @@ else if (Brand == 7){
         VBusSendData.buf[7] = 255;
         V_Bus.write(VBusSendData);
     }
+    else if (Brand == 9)
+    {
+        VBusSendData.id = 0x0CEF762C;
+        VBusSendData.flags.extended = true;
+        VBusSendData.len = 8;
+        VBusSendData.buf[0] = 0xF0;
+        VBusSendData.buf[1] = 0x1F;
+        VBusSendData.buf[2] = highByte(setCurve);
+        VBusSendData.buf[3] = lowByte(setCurve);
+        if (intendToSteer == 1)VBusSendData.buf[4] = 253;
+        if (intendToSteer == 0)VBusSendData.buf[4] = 252;
+        VBusSendData.buf[5] = 255;
+        VBusSendData.buf[6] = 255;
+        VBusSendData.buf[7] = 255;
+        V_Bus.write(VBusSendData);
+    }
 }
 
 //---Receive V_Bus message
@@ -355,7 +379,7 @@ void VBus_Receive()
           }
         }//End Brand == 0
 
-        if (Brand == 1)
+        else if (Brand == 1)
         {
             //**Current Wheel Angle & Valve State**
             if (VBusReceiveData.id == 0x0CAC1C13)
@@ -409,7 +433,7 @@ void VBus_Receive()
             
         }//End Brand == 1   
 
-        if (Brand == 2)
+        else if (Brand == 2)
         {
           //**Current Wheel Angle & Valve State**
           if (VBusReceiveData.id == 0x0CACAA08)
@@ -432,7 +456,7 @@ void VBus_Receive()
   
         }//End Brand == 2 
 
-        if (Brand == 3)
+        else if (Brand == 3)
         {
             //**Current Wheel Angle**
             if (VBusReceiveData.len == 8 && VBusReceiveData.buf[0] == 5 && VBusReceiveData.buf[1] == 10)
@@ -446,7 +470,7 @@ void VBus_Receive()
     
         }//End Brand == 3  
 
-        if (Brand == 4)
+        else if (Brand == 4)
         {
             //**Current Wheel Angle & Valve State**
             if (VBusReceiveData.id == 0x0CACAB13)
@@ -469,7 +493,7 @@ void VBus_Receive()
    
         }//End Brand == 4  
 
-        if (Brand == 5)
+        else if (Brand == 5)
         {
             //**Current Wheel Angle**
              if (VBusReceiveData.len == 8 && VBusReceiveData.buf[0] == 5 && VBusReceiveData.buf[1] == 10)
@@ -483,7 +507,7 @@ void VBus_Receive()
     
         }//End Brand == 5 
 
-        if (Brand == 6)
+        else if (Brand == 6)
         {
           //**Current Wheel Angle & Valve State**
           if (VBusReceiveData.id == 0x0CACF013)
@@ -492,9 +516,21 @@ void VBus_Receive()
                 steeringValveReady = (VBusReceiveData.buf[2]); 
           } 
    
+          //**Engage Message**
+          if (VBusReceiveData.id == 0x0CEFF021)
+          {
+              if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
+              {
+                  Time = millis();
+                  digitalWrite(engageLED, HIGH);
+                  engageCAN = 1;
+                  relayTime = ((millis() + 1000));
+              }
+          }
+
         }//End Brand == 6  
 
-        if (Brand == 7)
+        else if (Brand == 7)
         {
               //**Current Wheel Angle & Valve State**
               if (VBusReceiveData.id == 0x0CAC1C13)
@@ -508,7 +544,7 @@ void VBus_Receive()
         
         }//End Brand == 7 
 
-        if (Brand == 8)
+        else if (Brand == 8)
         {
             if (VBusReceiveData.id == 0x18EF1CF0)
             {
@@ -548,6 +584,47 @@ void VBus_Receive()
             }
 
         }//End Brand == 8
+
+        else if (Brand == 9)
+        {
+            if (VBusReceiveData.id == 0x0CEFFF76)
+            {
+                if ((VBusReceiveData.buf[0]) == 0xF0 && (VBusReceiveData.buf[1]) == 0x20)   //MT Curve & Status
+                {
+                    estCurve = ((VBusReceiveData.buf[2] << 8) + VBusReceiveData.buf[3]);
+
+                    if (gpsSpeed < 1.0) estCurve = 32128;
+
+                    byte tempByteA = VBusReceiveData.buf[4];
+                    byte tempByteB = VBusReceiveData.buf[5];
+
+                    if (tempByteA == 5)
+                    {
+                        steeringValveReady = 16;
+                    }
+                    else
+                    {
+                        steeringValveReady = 80;
+                    }
+
+                    byte tempGearByte = tempByteB << 4;
+
+                    if (tempGearByte == 32) reverse_MT = 1;
+                    else reverse_MT = 0;
+                }
+
+                if ((VBusReceiveData.buf[0]) == 0x0F && (VBusReceiveData.buf[1]) == 0x60)   //MT Engage
+                {
+                    if (VBusReceiveData.buf[2] == 0x01) {
+                        digitalWrite(engageLED, HIGH);
+                        engageCAN = 1;
+                        relayTime = ((millis() + 1000));
+                    }
+                }
+
+            }
+
+        }//End Brand == 9
 
         if (ShowCANData == 1)
         {

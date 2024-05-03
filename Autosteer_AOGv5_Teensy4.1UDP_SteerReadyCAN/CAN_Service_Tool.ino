@@ -58,6 +58,7 @@ void Service_Tool (void)
         else if ( b == '6') Lindner();
         else if ( b == '7') AgOpenGPS();
         else if ( b == '8') CatMT();
+        else if ( b == '9') CatMT_Early();
         else if ( b == 'R') ReadCAN();
         else if ( b == 'S') StopCAN();
         else if ( b == 'Z') setupPVED();
@@ -102,7 +103,8 @@ void Help(){
   Serial.println("5 = Set Brand as FendtOne");
   Serial.println("6 = Set Brand as Lindner");
   Serial.println("7 = Set Brand as AgOpenGPS");
-  Serial.println("8 = Set Brand as Cat MT");
+  Serial.println("8 = Set Brand as Cat MT Late");
+  Serial.println("9 = Set Brand as Cat MT Early");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
   Serial.println("Z = Danfoss PVED parameter setup");
@@ -190,7 +192,16 @@ void AgOpenGPS(){
 void CatMT() {
     EEPROM.update(70, 8);
     Brand = EEPROM.read(70);
-    Serial.println("Brand Set Cat MT, Restarting Teensy");
+    Serial.println("Brand Set Cat MT Late, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
+//**************************************************************************************
+void CatMT_Early() {
+    EEPROM.update(70, 9);
+    Brand = EEPROM.read(70);
+    Serial.println("Brand Set Cat MT Early, Restarting Teensy");
     delay(1000);
     SCB_AIRCR = 0x05FA0004; //Teensy Reset
     Serial.println(" ");

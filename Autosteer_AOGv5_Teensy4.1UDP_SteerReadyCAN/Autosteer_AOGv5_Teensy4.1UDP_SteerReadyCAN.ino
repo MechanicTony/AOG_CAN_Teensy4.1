@@ -45,7 +45,7 @@
 
 //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 18.02.2024");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 04.05.2024");
 
   ////////////////// User Settings /////////////////////////  
 
@@ -508,7 +508,8 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       else if (Brand == 5) Serial.println("Brand = FendtOne (Set Via Service Tool)");
       else if (Brand == 6) Serial.println("Brand = Lindner (Set Via Service Tool)");
       else if (Brand == 7) Serial.println("Brand = AgOpenGPS (Set Via Service Tool)");
-      else if (Brand == 8) Serial.println("Brand = Cat MT (Set Via Service Tool)");
+      else if (Brand == 8) Serial.println("Brand = Cat MT Late (Set Via Service Tool)");
+      else if (Brand == 9) Serial.println("Brand = Cat MT Early (Set Via Service Tool)");
       else Serial.println("No Tractor Brand Set, Set Via Service Tool");
 
       Serial.println("\r\nGPS Mode:");
