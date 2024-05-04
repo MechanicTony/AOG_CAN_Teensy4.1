@@ -812,7 +812,7 @@ void udpSteerRecv(int sizeToRead)
       //Bit 8,9    set point steer angle * 100 is sent
       steerAngleSetPoint = ((float)(udpData[8] | ((int8_t)udpData[9]) << 8))*0.01; //high low bytes
       
-      if (Brand == 8)
+      if (Brand == 8 || Brand == 9)
       {
           if (reverse_MT) steerAngleSetPoint *= -1.00;
       }
