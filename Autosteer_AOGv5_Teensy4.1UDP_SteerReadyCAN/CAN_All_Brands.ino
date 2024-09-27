@@ -176,8 +176,8 @@ else if (Brand == 1){
     VBusSendData.len = 8;
     VBusSendData.buf[0] = lowByte(setCurve);
     VBusSendData.buf[1] = highByte(setCurve);
-    if (intendToSteer == 1)VBusSendData.buf[2] = 253;
-    if (intendToSteer == 0)VBusSendData.buf[2] = 252;
+    if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10) VBusSendData.buf[2] = 253;
+    else VBusSendData.buf[2] = 252;
     VBusSendData.buf[3] = 0;
     VBusSendData.buf[4] = 0;
     VBusSendData.buf[5] = 0;
