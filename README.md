@@ -13,3 +13,7 @@ CAN3-H = Pin 3 Nav controller 40 pin connector X-716 or Pin H Diagnostic connect
 CAN3-L = Pin 13 Nav controller 40 pin connector X-716 or Pin J Diagnostic connector behind seat  
 
 [CaseIH_GPS.pdf](https://github.com/MechanicTony/AOG_CAN_Teensy4.1/files/10528432/CaseIH_GPS.pdf)
+
+Deutz Warrior
+CAN1 = Pin CD Diagnostic connector
+CAN3 = Pin EF Diagnostic connector

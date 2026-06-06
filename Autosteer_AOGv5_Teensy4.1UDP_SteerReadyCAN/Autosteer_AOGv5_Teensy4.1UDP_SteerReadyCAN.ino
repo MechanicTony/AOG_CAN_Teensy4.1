@@ -136,8 +136,8 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_256> K_Bus;    //Tractor / Control Bus
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_256> ISO_Bus;  //ISO Bus
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;    //Steering Valve Bus
 
-#define ledPin 5        //Option for LED, CAN Valve Ready To Steer.
-#define engageLED 24    //Option for LED, to see if Engage message is recived.
+#define ledPin 11//CAN_Ready 5        //Option for LED, CAN Valve Ready To Steer.
+#define engageLED 16//Steer 24    //Option for LED, to see if Engage message is recived.
 
 uint8_t Brand = 1;              //Variable to set brand via serial monitor.
 uint8_t gpsMode = 1;            //Variable to set GPS mode via serial monitor.
@@ -216,17 +216,15 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
   //Swap BNO08x roll & pitch? - Note this is now sent from AgOpen
 
-  //Roomba Vac mode for BNO085 and data
-  #include "BNO_RVC.h"
-  BNO_rvc rvc = BNO_rvc();
-  BNO_rvcData bnoData;
-  elapsedMillis bnoTimer;
-  bool bnoTrigger = false;
+  elapsedMillis imuTimer;
+  bool imuTrigger = false;
   HardwareSerial* SerialIMU = &Serial5;   //IMU BNO-085
 
   // booleans to see what mode BNO08x
   bool useBNO08x = false;
-  bool useBNO08xRVC = false;
+  bool useTM171 = false;
+  elapsedMillis TM171lastData;
+
 
   // BNO08x address variables to check where it is
   const uint8_t bno08xAddresses[] = {0x4A,0x4B};
@@ -367,8 +365,9 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
     ; // wait for serial port to connect. Needed for native USB port only
   }*/
 
-    SerialIMU->begin(115200);
-    rvc.begin(SerialIMU);
+      TM171setup();
+      delay(200);
+
 
     // Check for i2c BNO08x
     uint8_t error;
@@ -416,20 +415,19 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
 
       if (!useBNO08x)
       {
-          static elapsedMillis rvcBnoTimer = 0;
-          Serial.println("\r\nChecking for serial BNO08x");
-          while (rvcBnoTimer < 1000)
-          {
-              //check if new bnoData
-              if (rvc.read(&bnoData))
-              {
-                  useBNO08xRVC = true;
-                  Serial.println("Serial BNO08x Good To Go :-)");
-                  imuHandler();
-                  break;
+          static elapsedMillis rvcimuTimer = 0;
+          Serial.println("\r\nChecking for serial TM171");
+          delay(200);
+              TM171process();
+              if(TM171lastData <= 80) {
+                Serial.println("Received data from TM171");
+                useTM171 = true;
+                imuHandler();
+              } else {
+                Serial.println("No fresh data from TM171");
               }
-          }
-          if (!useBNO08xRVC)  Serial.println("No Serial BNO08x not Connected or Found");
+        
+          if (!useTM171)  Serial.println("TM171 not Connected or Found");
       }
   
     EEPROM.get(0, EEread);     // read identifier
@@ -751,15 +749,14 @@ boolean intendToSteer = 0;        //Do We Intend to Steer?
       {
           Read_IMU();
       }
-      else
+      else if (useTM171 )
       {
-          //RVC BNO08x
-          if (rvc.read(&bnoData)) useBNO08xRVC = true;
+        TM171process();
       }
-
-      if (useBNO08xRVC && bnoTimer > 40 && bnoTrigger)
+      
+      if (useTM171 && imuTimer > 40 && imuTrigger)
       {
-          bnoTrigger = false;
+          imuTrigger = false;
           imuHandler();   //Get IMU data ready
       }
 
@@ -921,7 +918,7 @@ void udpSteerRecv(int sizeToRead)
        Udp.write(helloFromAutoSteer, sizeof(helloFromAutoSteer));
        Udp.endPacket();
            
-       if (useBNO08x || useBNO08xRVC)
+       if (useBNO08x || useTM171)
        {
            Udp.beginPacket(ipDestination, 9999);
            Udp.write(helloFromIMU, sizeof(helloFromIMU));

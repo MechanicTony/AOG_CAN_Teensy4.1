@@ -135,6 +135,11 @@ delay (500);
   K_Bus.enableFIFO();
   K_Bus.setFIFOFilter(REJECT_ALL);
 //Put filters into here to let them through (All blocked by above line)
+  if (Brand == 1){
+    K_Bus.setFIFOFilter(0, 0x18FF5806, EXT);  //Deutz Engage Message
+    K_Bus.setFIFOFilter(1, 0x8FF6206, EXT);  //Deutz joystick
+  } 
+
 if (Brand == 3){
   K_Bus.setFIFOFilter(0, 0x613, STD);  //Fendt Arm Rest Buttons
   } 
@@ -357,7 +362,27 @@ void VBus_Receive()
               //*****Turn saftey valve ON**********
               if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);       
             }
+
+            else if ((VBusReceiveData.buf[0]) == 27 )   //Blazs Axion 930
+            {
+              engageCAN = bitRead(VBusReceiveData.buf[1],0);
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              relayTime = ((millis() + 1000));
+              //*****Turn saftey valve ON**********
+              if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);       
+            }
   
+            else if ((VBusReceiveData.buf[0]) == 39 && (VBusReceiveData.buf[2]) == 243)   //Balazs Arion 650 
+            {
+              engageCAN = bitRead(VBusReceiveData.buf[1],0);
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              relayTime = ((millis() + 1000));
+              //*****Turn saftey valve ON**********
+              if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);       
+            }
+    
             else if ((VBusReceiveData.buf[1])== 0 && (VBusReceiveData.buf[2])== 125) //Tony Non MR Models? Ryan Mod to bit read engage bit
             {
                engageCAN = bitRead(VBusReceiveData.buf[0],2);
@@ -721,7 +746,31 @@ void K_Receive()
     CAN_message_t KBusReceiveData;
     if (K_Bus.read(KBusReceiveData)) { 
       //Put code here to sort a message out from K-Bus if needed 
-  
+      if (Brand == 1)
+      {
+        if (KBusReceiveData.id == 0x18FF5806)   //**Deutz Engage Message**  
+        {
+          if (KBusReceiveData.buf[4]&0x01) // Deutz Engage bit 4th position 01   
+          {
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+          }
+        }
+        if (KBusReceiveData.id == 0x8FF6206)   //**Deutz joystick**  
+        {
+          //if (KBusReceiveData.buf[5]&0x01) // Comfortip Button
+          if (KBusReceiveData.buf[6]&0x01) // RPM 1
+          //if (KBusReceiveData.buf[4]&0x40) // RPM 2   
+          {
+              Time = millis();
+              digitalWrite(engageLED,HIGH); 
+              engageCAN = 1;
+              relayTime = ((millis() + 1000));
+          }
+        }
+      }
       if (Brand == 3)
       {
         if (KBusReceiveData.buf[0]==0x15 && KBusReceiveData.buf[2]==0x06 && KBusReceiveData.buf[3]==0xCA)

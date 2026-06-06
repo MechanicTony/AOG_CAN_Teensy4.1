@@ -82,8 +82,8 @@ void GGA_Handler() //Rec'd GGA
     tempString = ageDGPS;
     rtkAgeGGA = tempString.toFloat();
 
-    bnoTimer = 0;
-    bnoTrigger = true;
+    imuTimer = 0;
+    imuTrigger = true;
 
     if (useBNO08x)
     {
@@ -91,8 +91,10 @@ void GGA_Handler() //Rec'd GGA
        BuildNmea();           //Build & send data GPS data to AgIO
     }
 
-    else if (useBNO08xRVC)
+    else if (useTM171)
     {
+        imuTrigger = true;
+        imuTimer = 0;
         BuildNmea();           //Build & send data GPS data to AgIO
     }
 
@@ -168,49 +170,32 @@ void imuHandler()
         itoa(0, imuYawRate, 10);
     }
 
-    else if (useBNO08xRVC)
+    else if (useTM171)
     {
-        float angVel;
+            float angVel;
 
-        // Fill rest of Panda Sentence - Heading
-        itoa(bnoData.yawX10, imuHeading, 10);
+            // Fill rest of Panda Sentence - Heading
+            itoa(YawV.fValue*10, imuHeading, 10);
 
-        if (steerConfig.IsUseY_Axis)
-        {
-            // the pitch x100
-            itoa(bnoData.pitchX10, imuPitch, 10);
 
-            // the roll x100
-            itoa(bnoData.rollX10, imuRoll, 10);
-        }
-        else
-        {
-            // the pitch x100
-            itoa(bnoData.rollX10, imuPitch, 10);
+            if (steerConfig.IsUseY_Axis)
+            {
+                // the pitch x100
+                itoa(PitchV.fValue*10, imuPitch, 10);
 
-            // the roll x100
-            itoa(bnoData.pitchX10, imuRoll, 10);
-        }
+                // the roll x100
+                itoa(RollV.fValue*10, imuRoll, 10);
+            }
+            else
+            {
+                // the pitch x100
+                itoa(RollV.fValue*10, imuPitch, 10);
 
-        //Serial.print(rvc.angCounter);
-        //Serial.print(", ");
-        //Serial.print(bnoData.angVel);
-        //Serial.print(", ");
-        // YawRate
-        if (rvc.angCounter > 0)
-        {
-            angVel = ((float)bnoData.angVel) / (float)rvc.angCounter;
-            angVel *= 10.0;
-            rvc.angCounter = 0;
-            bnoData.angVel = (int16_t)angVel;
-        }
-        else
-        {
-            bnoData.angVel = 0;
-        }
+                // the roll x100
+                itoa(PitchV.fValue*10, imuRoll, 10);
+            }
 
-        itoa(bnoData.angVel, imuYawRate, 10);
-        bnoData.angVel = 0;
+            itoa(0, imuYawRate, 10);
     }
 }
 

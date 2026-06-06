@@ -769,6 +769,40 @@ void WriteParameters()
     V_Bus.write(msgP);
     
     delay(100);
+
+     // Change parameter 64101 to 255(Dec) SASA present
+    CAN_message_t msgsasa;
+    msgsasa.id = 0x98EF13FD;
+    msgsasa.flags.extended = true;
+    msgsasa.len = 8;
+    msgsasa.buf[0] = 0x0F;
+    msgsasa.buf[1] = 0xA2;
+    msgsasa.buf[2] = 0x4D;
+    msgsasa.buf[3] = 0xFE;
+    msgsasa.buf[4] = 0xFF;
+    msgsasa.buf[5] = 0x00;
+    msgsasa.buf[6] = 0x00;
+    msgsasa.buf[7] = 0x00;
+    V_Bus.write(msgsasa);
+
+    delay(100);
+
+ // Change parameter 1027 to 0(Dec) Speed steer amount, 0= none, 1000=full port flow
+    CAN_message_t msgflow;
+    msgflow.id = 0x98EF13FD;
+    msgflow.flags.extended = true;
+    msgflow.len = 8;
+    msgflow.buf[0] = 0x0F;
+    msgflow.buf[1] = 0xA2;
+    msgflow.buf[2] = 0x03;
+    msgflow.buf[3] = 0x04;
+    msgflow.buf[4] = 0x00;
+    msgflow.buf[5] = 0x00;
+    msgflow.buf[6] = 0x00;
+    msgflow.buf[7] = 0x00;
+    V_Bus.write(msgflow);
+
+    delay(100);
     Serial.println("Sent parameter change request, make sure you send commit command next");
 }
 
